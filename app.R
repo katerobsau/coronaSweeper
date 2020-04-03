@@ -142,7 +142,7 @@ server <- function(input, output) {
 
   output$plot1 <- renderPlot({
 
-    pnt_size = 5
+    pnt_size = 3.5
     ggplot(df$infections) +
       geom_point(aes(x = X, y = Y, col = quarantined),
                  shape = 15, size = pnt_size + 2) +
