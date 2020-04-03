@@ -1,0 +1,12 @@
+name: Corona_Sweeper
+title: Corona_Sweeper
+username:
+account: katerobsau
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 2043362
+bundleId: 2964613
+url: https://katerobsau.shinyapps.io/Corona_Sweeper/
+when: 1585925079.82762
+asMultiple: FALSE
+asStatic: FALSE
