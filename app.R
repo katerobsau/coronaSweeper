@@ -160,7 +160,9 @@ server <- function(input, output) {
       theme_minimal() +
       theme(axis.text = element_blank(),
             axis.title = element_blank(),
-            legend.title = element_blank()) +
+            legend.title = element_blank(),
+            legend.position = "bottom",
+            legend.box = "vertical") +
       ggtitle(paste("Days: ", counter$countervalue,
                     " Shown: ", game_summary$num_I_shown,
                     " Quarantined: ", game_summary$num_I_shown,
