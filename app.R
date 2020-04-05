@@ -12,20 +12,18 @@ infection_levels = c("S", "I", "T", "R")
 infection_labels = c("Susceptible", "Infected", "Tested", "Recovered")
 quarantine_levels = c("Yes", "No")
 quarantine_labels = c("Quarantined", "No Restrictions")
-easy_prob = 0.12
-medium_prob = 0.16
-hard_prob = 0.2
-default_level = "Medium"
-default_prob = medium_prob
+prob_infections = c(0.12, 0.16, 0.2)
+game_levels = c("Easy", "Medium", "Hard")
+default_level = game_levels[2]
+default_prob = prob_infections[2]
 
 # UI
 ui <- basicPage(
   useShinyalert(),
   plotOutput("plot1", click = "plot_click"),
   selectInput("level", "Game Difficulty:",
-              choices = c("Easy", "Medium", "Hard"), selected = default_level),
-  verbatimTextOutput("rules")#,
-  # verbatimTextOutput("info")
+              choices = game_levels, selected = default_level),
+  verbatimTextOutput("rules")
 )
 
 # Server
@@ -57,9 +55,8 @@ server <- function(input, output) {
   # Set probability of infection
   setup <- reactiveValues(prob = default_prob)
   observeEvent(input$level,{
-    if(input$level == "Easy"){setup$prob = easy_prob}
-    if(input$level == "Medium"){setup$prob = medium_prob}
-    if(input$level == "Hard"){setup$prob = hard_prob}
+    i = which(input$level == game_levels)
+    setup$prob = prob_infections[i]
   })
 
   # Time in quarantine
@@ -208,17 +205,6 @@ server <- function(input, output) {
       "\n - Infected people will recover on average after 14 days",
       "\n - And once infected they have immunity")
   })
-
-  # output$info <- renderText({
-  #
-  #   # ADD some statement in about whether the virus is under control
-  #   paste0("Total Susceptible = ", game_summary$num_S,
-  #          "\nTotal Detected Infections = ", game_summary$num_I_shown,
-  #          "\nTotal Hidden Infections = ", game_summary$num_I_hidden,
-  #          "\nTotal Quarantined = ", game_summary$num_Q,
-  #          "\nTotal Tested = ", game_summary$num_T)
-  #
-  # })
 
 }
 
