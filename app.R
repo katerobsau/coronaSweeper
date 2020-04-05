@@ -2,29 +2,36 @@ library(shiny)
 library(ggplot2)
 library(shinyalert)
 
+# Initialise parameters
+start_num_infections = 4
+symptom_lambda = 5
+recovery_lambda = 14
+I = 20;
+J = 20;
+infection_levels = c("S", "I", "T", "R")
+infection_labels = c("Susceptible", "Infected", "Tested", "Recovered")
+quarantine_levels = c("Yes", "No")
+quarantine_labels = c("Quarantined", "No Restrictions")
+easy_prob = 0.12
+medium_prob = 0.16
+hard_prob = 0.2
+default_level = "Medium"
+default_prob = medium_prob
+
+# UI
 ui <- basicPage(
   useShinyalert(),
   plotOutput("plot1", click = "plot_click"),
-  verbatimTextOutput("days"),
+  selectInput("level", "Game Difficulty:",
+              choices = c("Easy", "Medium", "Hard"), selected = default_level),
   verbatimTextOutput("rules")#,
   # verbatimTextOutput("info")
 )
 
+# Server
 server <- function(input, output) {
 
-  # Initialise parameters
-  start_num_infections = 4
-  symptom_lambda = 5
-  recovery_lambda = 14
-  prob_infection = 0.15
-  I = 20;
-  J = 20;
-  infection_levels = c("S", "I", "T", "R")
-  infection_labels = c("Susceptible", "Infected", "Tested", "Recovered")
-  quarantine_levels = c("Yes", "No")
-  quarantine_labels = c("Quarantined", "No Restrictions")
-
-  # Initialise infection status
+  # Initialise grid and infection status
   init_data <- expand.grid(X = 1:I, Y = 1:J)
   init_data$shown <- rep("S", I*J)
   init_data$hidden <- rep("T", I*J)
@@ -46,6 +53,14 @@ server <- function(input, output) {
   # In Quarantine
   init_data$quarantined <- rep("No", I*J)
   init_data$quarantined <- factor(init_data$quarantined, levels = quarantine_levels)
+
+  # Set probability of infection
+  setup <- reactiveValues(prob = default_prob)
+  observeEvent(input$level,{
+    if(input$level == "Easy"){setup$prob = easy_prob}
+    if(input$level == "Medium"){setup$prob = medium_prob}
+    if(input$level == "Hard"){setup$prob = hard_prob}
+  })
 
   # Time in quarantine
   # Add this
@@ -85,7 +100,7 @@ server <- function(input, output) {
               (i + I))
     contacts = setdiff(contacts, i)
     contacts = contacts[which(contacts > 0 & contacts < I*J)]
-    new_infections = rbinom(length(contacts), 1, prob_infection)
+    new_infections = rbinom(length(contacts), 1, setup$prob)
     infected_contacts = contacts[which(new_infections == 1)]
     df$infections$hidden[infected_contacts] = "I"
     df$infections$infection_period[infected_contacts]  = -1
@@ -160,7 +175,10 @@ server <- function(input, output) {
       theme_minimal() +
       theme(axis.text = element_blank(),
             axis.title = element_blank(),
-            legend.title = element_blank()) +
+            legend.title = element_blank(),
+            legend.text = element_text(size = 14)) +
+            # legend.position = "bottom",
+            # legend.direction = "horizontal") +
       ggtitle(paste("Days: ", counter$countervalue,
                     " Shown: ", game_summary$num_I_shown,
                     " Quarantined: ", game_summary$num_I_shown,
@@ -169,6 +187,7 @@ server <- function(input, output) {
   })
 
   output$rules <- renderText({
+
     paste0(
       "Goal: Find all the infected people before more than 100 get infected!",
       "\n",
