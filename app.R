@@ -178,8 +178,8 @@ server <- function(input, output) {
 
   output$plot1 <- renderPlot({
 
-    pnt_size = 5
-    ggplot(data = df$infections) +
+    pnt_size = 3.5
+    ggplot(df$infections) +
       geom_point(aes(x = X, y = Y, col = quarantined),
                  shape = 15, size = pnt_size + 2, alpha = 0.8) +
       scale_color_manual("EXPOSURE STATUS",
@@ -201,6 +201,8 @@ server <- function(input, output) {
       theme_minimal() +
       theme(axis.text = element_blank(),
             axis.title = element_blank(),
+            legend.position = "bottom",
+            legend.box = "vertical",
             legend.title = element_text(size = 14),
             legend.text = element_text(size = 14),
             title = element_text(size = 16, hjust = 0.5)) +
@@ -208,7 +210,6 @@ server <- function(input, output) {
                     " Shown:", game_summary$num_I_shown,
                     " Hidden:", game_summary$num_I_hidden - game_summary$num_I_shown,
                     " Recovered:", game_summary$num_R))
-
   })
 
   output$rules <- renderText({
