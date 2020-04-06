@@ -9,14 +9,14 @@ symptom_lambda = 5
 recovery_lambda = 14
 I = 20;
 J = 20;
-perc = 0.25;
+perc = 0.5;
 infection_levels = c("S", "I", "R")
 infection_labels = c("Susceptible", "Infected", "Recovered")
 test_levels = c("tested", "unknown")
 test_labels = c("Tested", "Not Tested")
 quarantine_levels = c("Yes", "No")
 quarantine_labels = c("Quarantined", "No Restrictions")
-prob_infections = c(0.12, 0.16, 0.2)
+prob_infections = c(0.15, 0.2, 0.25)
 game_levels = c("Easy", "Medium", "Hard")
 default_level = game_levels[2]
 default_prob = prob_infections[2]
@@ -227,19 +227,19 @@ server <- function(input, output) {
       "\n Game Setup:",
       "\n - The game starts with 4 infected people",
       "\n - By clicking on people you can test if they are infected",
-      "\n - Upon each new mouse click though there is chance that new people will become infected",
+      "\n - Upon each new mouse click new people can become infected",
       "\n - People can only be infected by their 4 direct neighbours",
       "\n",
       "\n To help you out:",
       "\n - Infected people show symptoms on average after 5 days",
       "\n - A person showing symptoms is quarantined, along with thier neighbours.",
-      "\n - Once a person is in quarantined they stop spreading the virus",
+      "\n - Once a person is in quarantine they stop spreading the virus",
       "\n - However, that doesn't mean they haven't already infected someone!",
       "\n",
       "\n Beware:",
       "\n - People who have been tested can still catch the virus!",
       "\n - Infected people will recover on average after 14 days",
-      "\n - And once infected they have immunity")
+      "\n - And once infected people have immunity")
   })
 
 }
