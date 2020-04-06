@@ -24,6 +24,7 @@ default_prob = prob_infections[2]
 # UI
 ui <- basicPage(
   useShinyalert(),
+  verbatimTextOutput("summaryText"),
   plotOutput("plot1", click = "plot_click"),
   selectInput("level", "Difficulty:",
               choices = game_levels, selected = default_level),
@@ -176,6 +177,13 @@ server <- function(input, output) {
   })
 
 
+  output$summaryText <- renderText({
+    paste("Days:", counter$countervalue,
+          " Shown:", game_summary$num_I_shown,
+          " Hidden:", game_summary$num_I_hidden - game_summary$num_I_shown,
+          " Recovered:", game_summary$num_R)
+  })
+
   output$plot1 <- renderPlot({
 
     pnt_size = 3.5
@@ -203,13 +211,12 @@ server <- function(input, output) {
             axis.title = element_blank(),
             legend.position = "bottom",
             legend.box = "vertical",
-            legend.title = element_text(size = 14),
+            legend.title = element_blank(), #element_text(size = 14),
             legend.text = element_text(size = 14),
             title = element_text(size = 16, hjust = 0.5)) +
-      ggtitle(paste("Days:", counter$countervalue,
-                    " Shown:", game_summary$num_I_shown,
-                    " Hidden:", game_summary$num_I_hidden - game_summary$num_I_shown,
-                    " Recovered:", game_summary$num_R))
+      guides(fill = guide_legend(order=1),
+              col = guide_legend(order=2),
+              shape = guide_legend(order=3))
   })
 
   output$rules <- renderText({
