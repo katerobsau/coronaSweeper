@@ -1,6 +1,7 @@
 library(shiny)
 library(ggplot2)
 library(shinyalert)
+library(patchwork)
 
 # Initialise parameters
 start_num_infections = 4
@@ -8,8 +9,11 @@ symptom_lambda = 5
 recovery_lambda = 14
 I = 20;
 J = 20;
-infection_levels = c("S", "I", "T", "R")
-infection_labels = c("Susceptible", "Infected", "Tested", "Recovered")
+perc = 0.25;
+infection_levels = c("S", "I", "R")
+infection_labels = c("Susceptible", "Infected", "Recovered")
+test_levels = c("tested", "unknown")
+test_labels = c("Tested", "Not Tested")
 quarantine_levels = c("Yes", "No")
 quarantine_labels = c("Quarantined", "No Restrictions")
 prob_infections = c(0.12, 0.16, 0.2)
@@ -21,7 +25,7 @@ default_prob = prob_infections[2]
 ui <- basicPage(
   useShinyalert(),
   plotOutput("plot1", click = "plot_click"),
-  selectInput("level", "Game Difficulty:",
+  selectInput("level", "Difficulty:",
               choices = game_levels, selected = default_level),
   verbatimTextOutput("rules")
 )
@@ -32,7 +36,7 @@ server <- function(input, output) {
   # Initialise grid and infection status
   init_data <- expand.grid(X = 1:I, Y = 1:J)
   init_data$shown <- rep("S", I*J)
-  init_data$hidden <- rep("T", I*J)
+  init_data$hidden <- rep("S", I*J)
   initial_infections <- sample(1:(I*J), start_num_infections)
   init_data$hidden[initial_infections] <- "I"
   init_data$hidden <- factor(init_data$hidden, levels = infection_levels)
@@ -52,6 +56,10 @@ server <- function(input, output) {
   init_data$quarantined <- rep("No", I*J)
   init_data$quarantined <- factor(init_data$quarantined, levels = quarantine_levels)
 
+  # Tested
+  init_data$tested <- rep("unknown", I*J)
+  init_data$tested <- factor(init_data$tested, levels = test_levels)
+
   # Set probability of infection
   setup <- reactiveValues(prob = default_prob)
   observeEvent(input$level,{
@@ -69,9 +77,10 @@ server <- function(input, output) {
   x_coord <- reactiveValues(ref = NULL)
   y_coord <-reactiveValues(ref = NULL)
   df <- reactiveValues(infections = init_data)
-  game_summary <- reactiveValues(win = NA, num_S = I*J, num_I_hidden = start_num_infections,
-               num_I_shown = 0, num_T = 0, num_1 = 0,
-               num_I_quarantined = 0)
+  game_summary <- reactiveValues(win = NA,
+                                 num_I_hidden = start_num_infections,
+                                 num_I_shown = 0,
+                                 num_R = 0)
 
   observeEvent(input$plot_click, {
 
@@ -87,62 +96,77 @@ server <- function(input, output) {
     y = min(y, J);
     y_coord$ref = y
 
+    # Order:
+    # * Update infections
+    # * Increase counter on infection period
+    # * Reveal those with symptoms
+    # * Reveal those who recovered
+    # * Reveal status of the person tested
+    # * Quarantine those exposed
+    # * Label those exposed
+
     # Update with new infections
     i = which(df$infections$hidden == "I" &
-                df$infections$quarantined == "No" &
-                df$infections$shown != "R")
+                df$infections$quarantined == "No" ) #&
+                # df$infections$shown != "R")
     contacts = c((i - 1),
               (i + 1),
               (i - I),
               (i + I))
     contacts = setdiff(contacts, i)
-    contacts = contacts[which(contacts > 0 & contacts < I*J)]
+    #BUG!!!
+    # Fix needed here, I can't infect people in quarantine with someone not in quarantine
+    contacts = contacts[which(contacts > 0 & contacts <= I*J)]
     new_infections = rbinom(length(contacts), 1, setup$prob)
     infected_contacts = contacts[which(new_infections == 1)]
     df$infections$hidden[infected_contacts] = "I"
     df$infections$infection_period[infected_contacts]  = -1
 
-    # Update infection period
-    i = which(df$infections$hidden == "I")
-    df$infections$infection_period[i] =
-      df$infections$infection_period[i] + 1
+    # Increase counter on infection period
+    infectious_cases = df$infections$hidden == "I"
+    df$infections$infection_period[infectious_cases] =
+      df$infections$infection_period[infectious_cases] + 1
 
-    # Update those with symptoms
-    known_cases = df$infections$infection_period >
-      df$infections$symptom_time
+    # Reveal those with symptoms
+    known_cases = df$infections$infection_period > df$infections$symptom_time
     df$infections$shown[known_cases] = "I"
 
-    # Update those who recovered
+    # Reval those who recovered
     recovered_cases = df$infections$infection_period > df$infections$recovery_time
     df$infections$hidden[recovered_cases] = "R"
     df$infections$shown[recovered_cases] = "R"
 
-    # Reveal the person tested
+    # Reveal status of the person tested
     vec_ref = (y_coord$ref-1)*J + x_coord$ref
-    df$infections$shown[vec_ref] = df$infections$hidden[vec_ref]
+    df$infections$tested[vec_ref] = "tested"
+    hidden_status = df$infections$hidden[vec_ref]
+    if(hidden_status %in% c("I", "R"))
+      df$infections$shown[vec_ref] = df$infections$hidden[vec_ref]
 
-    # Force social isolation
+    # Quarantine those exposed
     i = which(df$infections$shown == "I")
     isolating = c(i,
                  (i - 1),
                  (i + 1),
                  (i - I),
                  (i + I))
-    isolating = isolating[which(isolating > 0 & isolating < I*J)]
+    isolating = isolating[which(isolating > 0 & isolating <= I*J)]
     df$infections$quarantined[isolating] = "Yes"
 
+    # # Label those exposed
+    # exposed_cases = (df$infections$shown == "S" &
+    #                    df$infections$quarantined == "Yes")
+    # df$infections$shown[exposed_cases] = "E"
+
     # Game stats
-    game_summary$num_S = sum(df$infections$shown == "S")
     game_summary$num_I_shown = sum(df$infections$shown == "I")
     game_summary$num_I_hidden = sum(df$infections$hidden == "I")
-    game_summary$num_R = sum(df$infections$hidden == "R")
-    game_summary$num_T = sum(df$infections$shown == "T")
-    game_summary$num_Q = sum(df$infections$quarantined == "Yes")
+    game_summary$num_R = sum(df$infections$shown == "R")
 
     # i = which(df$infections$hidden == "I")
     # game_summary$num_I_quarantined = sum(df$infections$quarantined[i] == "Yes")
     game_win = (game_summary$num_I_shown == game_summary$num_I_hidden)
-    game_loss = ((game_summary$num_I_hidden + game_summary$num_R) > I*J*0.25)
+    game_loss = ((game_summary$num_I_hidden + game_summary$num_R) > I*J*perc)
 
     if(game_win)
       shinyalert(title = "You did it! \n All infections are quarantined", type = "success")
@@ -155,38 +179,42 @@ server <- function(input, output) {
   output$plot1 <- renderPlot({
 
     pnt_size = 5
-    ggplot(df$infections) +
+    ggplot(data = df$infections) +
       geom_point(aes(x = X, y = Y, col = quarantined),
-                 shape = 15, size = pnt_size + 2) +
-      scale_color_manual(name = "Quarantine Status",
+                 shape = 15, size = pnt_size + 2, alpha = 0.8) +
+      scale_color_manual("EXPOSURE STATUS",
                          labels = quarantine_labels,
-                         values = c("No" = "gray", "Yes" = "coral"),
+                         values = c("No" = "lightgray", "Yes" = "coral"),
                          drop = FALSE) +
-      geom_point(aes(X, Y, fill = shown), shape = 21, size = pnt_size) +
-      scale_fill_manual(name = "Person",
+      geom_point(aes(X, Y, fill = shown),
+                 shape = 21, size = pnt_size) +
+      scale_fill_manual("INFECTION STATUS",
                         labels = infection_labels,
-                        values = c("S" = "gray", "I" = "red",
-                                   "T" = "forestgreen", "R" = "blue"),
+                        values = c("S" = "gray", "I" = "red", "R" = "blue"),
                         drop = FALSE) +
+      geom_point(aes(X, Y, shape = tested), size = pnt_size, stroke = 1) +
+      scale_shape_manual("TEST STATUS",
+                         labels = test_labels,
+                         values = c("unknown" = 1, "tested" = 13),
+                         drop = FALSE) +
       coord_fixed() +
       theme_minimal() +
       theme(axis.text = element_blank(),
             axis.title = element_blank(),
-            legend.title = element_blank(),
-            legend.text = element_text(size = 14)) +
-            # legend.position = "bottom",
-            # legend.direction = "horizontal") +
-      ggtitle(paste("Days: ", counter$countervalue,
-                    " Shown: ", game_summary$num_I_shown,
-                    " Quarantined: ", game_summary$num_I_shown,
-                    " Hidden:", game_summary$num_I_hidden - game_summary$num_I_shown))
+            legend.title = element_text(size = 14),
+            legend.text = element_text(size = 14),
+            title = element_text(size = 16, hjust = 0.5)) +
+      ggtitle(paste("Days:", counter$countervalue,
+                    " Shown:", game_summary$num_I_shown,
+                    " Hidden:", game_summary$num_I_hidden - game_summary$num_I_shown,
+                    " Recovered:", game_summary$num_R))
 
   })
 
   output$rules <- renderText({
 
     paste0(
-      "Goal: Find all the infected people before more than 100 get infected!",
+      "Goal: Find all the infected people before more than ", round(I*J*perc) , " get infected!",
       "\n",
       "\n Game Setup:",
       "\n - The game starts with 4 infected people",
