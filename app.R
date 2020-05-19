@@ -1,3 +1,5 @@
+warning("Should have used exponential not Poisson variables!")
+
 library(shiny)
 library(ggplot2)
 library(shinyalert)
