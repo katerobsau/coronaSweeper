@@ -171,7 +171,7 @@ A few small fixes also make the game much more aesthetically pleasing
 * `guides()` can be used to order the position of the legend elements
 
 ```{r}
-board + 
+board <- board + 
   coord_fixed() +
       theme_minimal() +
       theme(
@@ -181,6 +181,7 @@ board +
       guides(fill = guide_legend(order=1),
               col = guide_legend(order=2),
               shape = guide_legend(order=3))
+board
 ```
 
 Positioning the legend at the bottom improves the display on mobile devices. 
@@ -258,9 +259,34 @@ init_data$infection_period[initial_infections] <- 0
 
 ## Shiny and Interactivity
 
+To create the game in R we are going to use shiny. My goal here is to help you get the basics of what is needed to understand and recreate my game. I will therefore not cover shiny in a comprehensive way. For learning shiny, I would highly recommend these tutorials instead https://shiny.rstudio.com/tutorial/written-tutorial/lesson1/ . Also to keep things brief, I will parrallel all the funcitonality needed using simple shiny examples. 
+
 ### Basic set up 
 
-plotInput()
+Shiny needs two core functions to work, a User Interface (UI) and a Server. In the user interface you specify the app layout, ie a plot in the middle, and in the server you specify what the plot should look like. The basic set up for a plot object in Shiny is below. Once you save such a file there is a run option up the top that will generate the app layout.
+
+```{r eval = FALSE}
+library(shiny)
+library(ggplot2)
+
+pnt_col = c(rep("red", 5), rep("blue", 5))
+plot_data = data.frame(x = 1:10, y = 1:10, col = pnt_col)
+
+ui <- basicPage(
+  plotOutput("plotExample")
+)
+
+server <- function(input, output){
+  output$plotExample <- renderPlot({ 
+    ggplot(data = plot_data) + 
+      geom_point(aes(x = x, y = y, col = col)) +  
+      ggtitle("Some plot example")
+      
+  })
+}
+
+shinyApp(ui, server)
+```
 
 ### How to test
 
