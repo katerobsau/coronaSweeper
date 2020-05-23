@@ -178,7 +178,6 @@ server <- function(input, output) {
 
   })
 
-
   output$summaryText <- renderText({
     paste("Days:", counter$countervalue,
           " Shown:", game_summary$num_I_shown,

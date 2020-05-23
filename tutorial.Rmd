@@ -12,29 +12,39 @@ library(knitr)
 library(kableExtra)
 ```
 
-### Why? 
+# Game Design {.tabset}
 
-When corona began uncertainty was high. Given my mathematical background, I had to resist the temptation to become an armchair epidemiologist. I still felt this overwhelming desire to explore the problem through data visualisation though, so I channelled my energies into creating this game. 
+## Why? 
 
-### Corona spread visualisations
+When corona began, uncertainty was high and given my mathematical background I had to resist the strong temptation to become an armchair epidemiologist. I still felt this overwhelming desire to explore the aspects of virus sprerad through data visualisation though, so I channelled my energies into creating this shiny app. 
 
-I was really vibing with the data visualisation from the washington post - 'https://www.washingtonpost.com/graphics/2020/world/corona-simulator/' 
+One of the earliest and most influential visualisations of the virus spread was from an [article]('https://www.washingtonpost.com/graphics/2020/world/corona-simulator/') in the Washington Post. I think this visualisation is marvellous and have shared it widely with friends and family. Although, for me something does feel missing in this visualisation, aside from people acting like a pinballs in a pinball machine. It is the capacity to interact, and experiment further with aspects of how virus spread works. These ideas are explored further in this [youtube video]('https://www.youtube.com/watch?v=gxAaO2rsdIs').
 
-Something felt missing though, aside from people acting like a pinballs in a pinball machine. It was the capacity to interact, and experiment with the design. Something that was explored further in 
+Around the same time, I became aware of the twitter trend [5 jobs you had beforre you became a scientist]('https://www.nj.com/entertainment/2019/04/what-have-you-done-for-money-in-5-jobs-trend-people-are-sharing-their-work-history-on-twitter.html'). (I love this trend took over a year to reach my clearly, very Australian-centric twitter feed). In my first job, I did administrative chores at my mum's physiotherapy and I also played a lot of minesweeper. Like a lot - sorry Mum.
 
-'https://www.youtube.com/watch?v=gxAaO2rsdIs'
+It was this combination of things that sparked the idea to create [corona sweeper]('https://katerobsau.shinyapps.io/Corona_Sweeper/'). A shiny app where instead of identifying hidden mines, you can use testing to uncover infected individuals in a population. How we choose to test is clearly very important to mitigating virus spread.
 
-Around the same time, I became aware of the twitter trend 'https://www.nj.com/entertainment/2019/04/what-have-you-done-for-money-in-5-jobs-trend-people-are-sharing-their-work-history-on-twitter.html' (I love this trend took over a year to reach my clearly very Australian-centric twitter feed).
-I recalled that in my first job, doing administrative chores at my mum's physiotherapy, I played a lot of minesweeper - like a lot. Sorry mum.
+### A comment on sensitivity 
 
+So I actually wrote this code during my second week of working from home in the Netherlands. I wasn't being productive at work, and working on a creative idea in R is an outlet for me. I have wanted to share it for a while, but I was worried that people may find it distasteful. Covid-19 is impacting lives and livelihoods. 
 
-It was this combination of things that sparked the idea to create **corona sweeper**. A game where instead of flagging mines, you can use testing to find infected individuals in a population. 
+There are reasons that have since changed my mind about sharing the game:
 
-### Game Set Up 
+(i) I have shared it with friends, and friends with family who have had corona. It bought these people joy and that is what matters.
 
-#### Board
+(ii) I recently had a brief period of self-isolation myself, when two friends in my bubble developed Covid-like symptoms. These friends didn't meet the criteria for testing here in the Netherlands, so we still do not know whether why they were sick was covid related or not. Either way, the experience has made the game a lot less abstract for me now.
 
-I decided to use a standard looking minesweeper board. You can achieve this in a range of ways. Here I've used `geom_point()` and a square point type, `shape = 15`. This gives us flexibility for later. 
+(iii) Game play is a really important tool for learning. I have learnt a lot about the interplay of infection spread, quarantine and testing through playing this simple game. The most interesting part is that even though I am the designer, I didn't know what the optimal strategy was until I had played and experimented with the parameter's of the design. 
+
+(iv) The most important point. Some people told me I should make it available through the app store and monetarise it. Turns out I'm a classic academic and don't seek reward for knowledge or hard work. However, I met a wonderful woman from India earlier this year. By following her facebook posts I have realised just how closed my world is to many of the problems faced by people in her country. Her city of Bengal was recently hit by a Cyclone and support is needed given the compounding impacts of covid-19, such as increased spread in disaster shelters. So if you enjoy playing this game, you can donate [here]('https://www.edexlive.com/news/2020/may/22/amphancyclone-heres-how-you-can-donate-to-relief-funds-to-help-cyclone-ravaged-bengal-and-odisha-12179.html).
+
+## Game Set Up
+
+Here I give the `ggplot` code needed to create the design of the game board. Hopefully, it looks clean and simple, but it actually took some thinking!
+
+### Board
+
+I decided to use a standard looking minesweeper board. You can achieve this in a range of ways. Here I've used `geom_point()` and a square point type, `shape = 15`. This gives us flexibility for later.
 
 ```{r}
 # board parameters
@@ -49,7 +59,7 @@ ggplot(data = init_data) +
     geom_point(aes(x = X, y = Y), col = "gray", shape = 15, size = pnt_size + 2) 
 ```
 
-#### Susceptible States
+### Susceptible States
 
 In the standard mathematical modelling of epidemic spread, a person is generally classfied in one of following states:
 
@@ -65,37 +75,37 @@ kable(infection_table) %>%
   kable_styling(bootstrap_options = c("striped", "hover"))
 ```
 
-If a person who is susceptible comes into contact with an infected person they have a chance of catching the virus. If the person catches the virus, there state changes to infected. People who no longer have the the virus are considered recovered. Once a person has recovered will assume they don't return to a susceptible state and can not become infected again. Further labelling the state as recovered avoids including a specific mortality state.
+If a person who is susceptible comes into contact with an infected person they have a chance of catching the virus. If the person catches the virus, there state changes to infected. People who no longer have the the virus are considered recovered. Once a person has recovered will assume they don't return to a susceptible state and can not become infected again. Labelling the state as recovered also avoids including a specific mortality state.
 
-Firstly we add a new column called `shown` for the susceptible states. 
+To store the susceptible state of a person, a new column called `shown` is added to our data frame. 
 
 ```{r}
 # add a new susceptible state called shown to our data frame
 infection_levels = c("S", "I", "R")
 infection_labels = c("Susceptible", "Infected", "Recovered")
 init_data$shown = rep("S", nrow(init_data))
-init_data$shown[I*(J/2) + J/2] = "I"
+init_data$shown[I*(J/2) + J/2] = "I" 
 init_data$shown <- factor(init_data$shown, levels = infection_levels)
 ```
 
 You might notice, I have both a levels and labels vector. The levels are for me internally, to keep my code concise and clear, and the labels are for what I want to appear in my plot legend later.  
 
-These states are visualised on our game board with `geom_point()` and a circle, `shape = 15`.  The colour of the circle will show the susceptibility state.
+Each person's will be visualised using `geom_point()` and a circle, `shape = 15`. The colour of this circle will show their susceptibility state.
 ```{r}
 # plot the new board which has susceptible states
 ggplot(data = init_data) +
-    geom_point(aes(x = X, y = Y), col = "gray", shape = 15, size = pnt_size + 2) +
+  geom_point(aes(x = X, y = Y), col = "gray", shape = 15, size = pnt_size + 2) +
   geom_point(aes(X, Y, fill = shown), shape = 21, size = pnt_size) +
-      scale_fill_manual("INFECTION STATUS", labels = infection_labels,
-                        values = c("S" = "gray", "I" = "red", "R" = "blue"), 
-                        drop = FALSE) 
+  scale_fill_manual("INFECTION STATUS", labels = infection_labels,
+                      values = c("S" = "gray", "I" = "red", "R" = "blue"), 
+                      drop = FALSE) 
 ```
 
 At the beginning of the game not all susceptible states will be visible. We want to keep the legend constant and to show all possible states at all times. This is why we convert the `shown` state to a factor instead of a string, and use `drop = FALSE` when we create our legend.
 
-#### Quaratine 
+### Quaratine 
 
-There is a fourth state a person can be, this is the exposed state. Exposed people, have come into contact with an infected person, but don't know yet if they have contracted virus. To prevent the further spread of the virus these people normally go into quarantine. We will assume that a person who is infected can only infect their four closest neighbours, and when an infection is discovered these four neighbours will quarantine.
+There is a fourth state a person can be, this is the exposed state. Exposed people, have come into contact with an infected person, but don't know yet if they have contracted virus. To prevent the further spread of the virus these people normally go into quarantine. We will assume that a person who is infected can only infect their four closest neighbours. Therefore when an infection is discovered their four neighbours are exposed and will be quarantined.
 
 Therefore instead of visualising an additional exposed state, we will create an new column for a person's quaratine status.
 
@@ -117,16 +127,16 @@ We will use the undelying grid to show if a person is in quarantine or not. Here
 ggplot(data = init_data) +
     geom_point(aes(x = X, y = Y, col = quarantined), 
                shape = 15, size = pnt_size + 2, alpha = 0.8) +
-      scale_color_manual("EXPOSURE STATUS", labels = quarantine_labels,
+    scale_color_manual("EXPOSURE STATUS", labels = quarantine_labels,
                          values = c("No" = "lightgray", "Yes" = "coral"),
                          drop = FALSE) +
-  geom_point(aes(X, Y, fill = shown), shape = 21, size = pnt_size) +
-      scale_fill_manual("INFECTION STATUS", labels = infection_labels,
+    geom_point(aes(X, Y, fill = shown), shape = 21, size = pnt_size) +
+    scale_fill_manual("INFECTION STATUS", labels = infection_labels,
                         values = c("S" = "gray", "I" = "red", "R" = "blue"), 
                         drop = FALSE) 
 ```
 
-#### Testing
+### Testing
 
 We also need to visualise if a person has been tested. For this we create a new column for the test state.
 ```{r}
@@ -144,23 +154,23 @@ We then use `geom_point()` and a circle with a cross, `shape = 13` to show if a 
 board <- ggplot(data = init_data) +
     geom_point(aes(x = X, y = Y, col = quarantined), shape = 15, 
                size = pnt_size + 2, alpha = 0.8) +
-      scale_color_manual("EXPOSURE STATUS", labels = quarantine_labels,
+    scale_color_manual("EXPOSURE STATUS", labels = quarantine_labels,
                          values = c("No" = "lightgray", "Yes" = "coral"),
                          drop = FALSE) +
-  geom_point(aes(X, Y, fill = shown), shape = 21, size = pnt_size) +
-      scale_fill_manual("INFECTION STATUS", labels = infection_labels,
+    geom_point(aes(X, Y, fill = shown), shape = 21, size = pnt_size) +
+    scale_fill_manual("INFECTION STATUS", labels = infection_labels,
                         values = c("S" = "gray", "I" = "red", "R" = "blue"), 
                         drop = FALSE) +
     geom_point(aes(X, Y, shape = tested), size = pnt_size, stroke = 1) +
-      scale_shape_manual("TEST STATUS", labels = test_labels,
+    scale_shape_manual("TEST STATUS", labels = test_labels,
                          values = c("unknown" = 1, "tested" = 13),
                          drop = FALSE) 
 board
 ```
 
-#### Tweaking the aesthetics 
+### Tweaking the aesthetics 
 
-At this point it is worth noting that the shape symbols are carefully selected so we can simultaneously display all three states; susceptibility (fill), exposure (shape), and quarantine (colour). 
+At this point it is worth noting that I have carefully selected the shape symbols so all three states; exposure (colour), susceptibility (fill) and test (shape), can be visualised simultaneously. Also note that the order in which we include these `geom_point()` calls is important for the layering. 
 
 A few small fixes also make the game much more aesthetically pleasing
 
@@ -169,6 +179,8 @@ A few small fixes also make the game much more aesthetically pleasing
 * `axis.*()` can be used to remove the axes text and labels
 * `legend.*()` can be used to change the legend position and text
 * `guides()` can be used to order the position of the legend elements
+
+We position the legend at the bottom improves the display on mobile devices. 
 
 ```{r}
 board <- board + 
@@ -184,22 +196,158 @@ board <- board +
 board
 ```
 
-Positioning the legend at the bottom improves the display on mobile devices. 
+## Shiny and Interactivity
 
-# Game Play
+Before we get too much futher into game design, I think its important to review the shiny basics needed to create the interactivity. I will not cover shiny in a comprehensive way, for that I would highly recommend these [tutorials](  https://shiny.rstudio.com/tutorial/written-tutorial/lesson1/). Instead I will present code snippets in their simplest form that will parallel the interactivity required.
 
-### Game start
+### Basic Plot Set Up 
+
+Shiny needs two core functions to work, a User Interface (UI) and a Server. In the user interface you specify the app layout, ie a plot in the middle, and in the server you specify what the plot should look like. The basic set up for a plot object in Shiny is below. 
+
+```{r}
+library(shiny)
+library(ggplot2)
+
+init_data = data.frame(x = 1:10, y = rep(0,10), shape = rep("A",10)) 
+init_data$shape <- factor(init_data$shape, levels = c("A", "B"))
+
+ui <- basicPage(
+  plotOutput("plotExample", click = NULL)
+)
+
+server <- function(input, output){
+
+  output$plotExample <- renderPlot({
+    ggplot(data = init_data) +
+      geom_point(aes(x = x, y = y, shape = shape), size = 10) +
+      ggtitle("Some simple plot example") +
+      theme(legend.position = "none")
+  })
+
+}
+
+shinyApp(ui, server)
+```
+
+There is currently no interactivity specified yet.
+
+### Mouse Click
+
+Later, we will use the mouse click to test if a person is infected. We will do this by collecting that person's coordinates from a mouse click and passing those coordintes to other variables. 
+
+The goal of the following snippets is to show how to use the information from a mouse click to update plot aesthetics. This requires three basic edits to the above code.
+
+#### (i) Specify the mouse click variable 
+
+To get coordinates from a plot in shiny we can simply change the inputs to the `plotOutput()` function in the user interface. 
+
+```{r eval = FALSE}
+ui <- basicPage(plotOutput("plotExample", click = "plot_click"))
+```
+Now a variable called `input$plot_click` that contains coordinates can be called within the server function.
+
+#### (ii) Create a new reactive variable
+
+To update a variable when something changes, ie. like a mouse is click, we need to use `reactiveValues()`. In our example, this means the data frame that is passed to `renderPlot()` needs to be specified as a reactive variable.
+
+```{r eval = FALSE}
+plot <- reactiveValues(data = init_data)
+```
+
+The data frame passed to the function `renderPlot()` now also needs updated to our new reactive varialbe, `plot$data`.
+
+```{r eval = FALSE}
+output$plotExample <- renderPlot({
+    ggplot(data = plot$data) +
+      # same as before
+  })
+```
+
+#### (iii) Make the new variable react
+
+To cause `plot$data` to *react* whenever the mouse is clicked, we need to specify in our code that the the plot has been clicked using `observeEvent()`. The below snippet will changes shape columns in our data frame.
+
+```{r eval = FALSE}
+observeEvent(input$plot_click,{
+    i = round(as.numeric(input$plot_click$x))
+    plot$data$shape[i] = "B"
+})
+```
+
+#### Result
+
+Putting it all together we get the following update to the shiny app.
+
+```{r}
+library(shiny)
+
+init_data = data.frame(x = 1:10, y = rep(0,10), shape = rep("A",10)) 
+init_data$shape <- factor(init_data$shape, levels = c("A", "B"))
+
+ui <- basicPage(plotOutput("plotExample", click = "plot_click"))
+
+server <- function(input, output){
+
+  plot <- reactiveValues(data = init_data)
+  
+  observeEvent(input$plot_click,{
+    i = round(as.numeric(input$plot_click$x))
+    plot$data$shape[i] = "B"
+  })
+  
+  output$plotExample <- renderPlot({
+    ggplot(data = plot$data) +
+      geom_point(aes(x = x, y = y, shape = shape), size = 10) +
+      ggtitle("Some simple plot example") +
+      theme(legend.position = "none")
+  })
+
+}
+
+shinyApp(ui, server)
+```
+
+### Text
+
+#### Rules 
+summary text 
+
+### Winning  
+asdf
+
+#### Pop Up Box 
+asdf
+
+#### Game Stats
+asdf
+
+### Difficulty 
+asdf
+
+### Slider 
+asdf
+
+### Reactivity
+asdf
+
+### Hosting Online
+asdf
+
+## Virus Behaviour
+
+### Initial Infections
 
 The game begins with four individuals within the population who are infected. These people are chosen randomly and their infection status is hidden. The person will be revealed as infected in two cases, if (i) they are tested, or (ii) they develop symptoms. The goal of the game is to use testing to discover people within the population who are infected, and to stop the virus spreading.
 
-```{r}
+```{r eval = FALSE}
 # add a hidden state that keeps track of infection status
-start_num_infections = 4
-init_data$hidden <- rep("S", I*J)
+start_num_infections = 4 
+init_data$hidden <- rep("S", I*J) 
 initial_infections <- sample(1:(I*J), start_num_infections)
 init_data$hidden[initial_infections] <- "I"
 init_data$hidden <- factor(init_data$hidden, levels = infection_levels)
 ```
+For each person we now have an entry in each of the columns: `x`, `y`, `shown`, `quarantined`, `tested` and `hidden`.
 
 ### Catching the virus 
 
@@ -228,7 +376,7 @@ A susceptible person can catch the virus from an infected person. Below we have 
 
 In probability, how an infection occurs between a susceptible and infected person is modelled using a Bernoulli random variable. Bernoulli variables can be one of two things, ie. heads or tails, yes or no, true or false. In our case, infected or not infected. If you are performing multiple Bernoulli trials, then we model this using a binonmial variable, ie how many heads in 10 coin flips, or how many infections of four neighbours. This is what the function `rbinom` does.
 
-### Virus characteristics 
+### Symptoms and Recovery
 
 For the game to mirror the virus characteristics, we want there to be a period of time before an infected person will show symptoms. One average the WHO says symptoms will show after 6 days. 
 https://www.who.int/emergencies/diseases/novel-coronavirus-2019/question-and-answers-hub/q-a-detail/q-a-coronaviruses
@@ -251,66 +399,17 @@ init_data$recovery_time <- init_data$symptom_time + rpois(I*J, lambda = recovery
 Poisson random variables are used to simulate the time until the symptoms arrive and the time until patient recovery.**Very wrong, need to fix**
 
 We also add one more state called infection time. This will be used to keep track of when a person becomes infected, and when their symptoms will be revealed and when they will recover.
-```{r}
+```{r eval = FALSE}
 # Infection time
 init_data$infection_period <- rep(NA, I*J)
 init_data$infection_period[initial_infections] <- 0
 ```
 
-## Shiny and Interactivity
+<!-- ### Reactivity  -->
 
-To create the game in R we are going to use shiny. My goal here is to help you get the basics of what is needed to understand and recreate my game. I will therefore not cover shiny in a comprehensive way. For learning shiny, I would highly recommend these tutorials instead https://shiny.rstudio.com/tutorial/written-tutorial/lesson1/ . Also to keep things brief, I will parrallel all the funcitonality needed using simple shiny examples. 
+<!-- Counter  -->
 
-### Basic set up 
-
-Shiny needs two core functions to work, a User Interface (UI) and a Server. In the user interface you specify the app layout, ie a plot in the middle, and in the server you specify what the plot should look like. The basic set up for a plot object in Shiny is below. Once you save such a file there is a run option up the top that will generate the app layout.
-
-```{r eval = FALSE}
-library(shiny)
-library(ggplot2)
-
-pnt_col = c(rep("red", 5), rep("blue", 5))
-plot_data = data.frame(x = 1:10, y = 1:10, col = pnt_col)
-
-ui <- basicPage(
-  plotOutput("plotExample")
-)
-
-server <- function(input, output){
-  output$plotExample <- renderPlot({ 
-    ggplot(data = plot_data) + 
-      geom_point(aes(x = x, y = y, col = col)) +  
-      ggtitle("Some plot example")
-      
-  })
-}
-
-shinyApp(ui, server)
-```
-
-### How to test
-
-plotClick()
-
-### Reactivity 
-
-Counter 
-
---> new infections --> infection period -->
-symtpom show -->  recovery show --> tested --> quarantine  
-
-### Winning  
-
-pop up, game stats
-
-### Text
-
-summary text (confusing some can recover)
-rules
-
-### Difficulty 
-
-prob of infection
+<!-- new infections > infection period > symtpom show >  recovery show > tested > quarantine  -->
 
 <!-- ### How the virus spreads  -->
 
@@ -330,11 +429,8 @@ prob of infection
 
 <!-- Each of these grid cells represent a person in the population. -->
 
-
-
-
-
 <!-- ## Migration -->
 <!-- ## Mortality -->
 <!-- * shiny mobile -->
 <!-- * optimising the probability -->
+<!-- (confusing some can recover) -->
