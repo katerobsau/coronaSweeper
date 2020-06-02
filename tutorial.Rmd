@@ -20,25 +20,24 @@ library(kableExtra)
 
 When corona began, uncertainty was high and given my mathematical background I had to resist the strong temptation to become an armchair epidemiologist. I still felt this overwhelming desire to explore the aspects of virus sprerad through data visualisation though, so I channelled my energies into creating this shiny app. 
 
-One of the earliest and most influential visualisations of the virus spread was from an [article]('https://www.washingtonpost.com/graphics/2020/world/corona-simulator/') in the Washington Post. I think this visualisation is marvellous and have shared it widely with friends and family. Although, for me something does feel missing in this visualisation, aside from people acting like a pinballs in a pinball machine. It is the capacity to interact, and experiment further with aspects of how virus spread works. These ideas are explored further in this [youtube video]('https://www.youtube.com/watch?v=gxAaO2rsdIs').
+One of the earliest and most influential visualisations of the virus spread was from an [article]('https://www.washingtonpost.com/graphics/2020/world/corona-simulator/') in the Washington Post. I think this visualisation is marvellous and have shared it widely with friends and family. Although, for me something does feel missing in this visualisation, aside from people acting like a pinballs in a pinball machine. It is the capacity to interact, and experiment further with aspects of how virus spread works. A more comprehensive look at some of the variables involved is given in this [youtube video]('https://www.youtube.com/watch?v=gxAaO2rsdIs').
 
-Around the same time, I became aware of the twitter trend [5 jobs you had beforre you became a scientist]('https://www.nj.com/entertainment/2019/04/what-have-you-done-for-money-in-5-jobs-trend-people-are-sharing-their-work-history-on-twitter.html'). (I love this trend took over a year to reach my clearly, very Australian-centric twitter feed). In my first job, I did administrative chores at my mum's physiotherapy and I also played a lot of minesweeper. Like a lot - sorry Mum.
+Around the same time, I became aware of the twitter trend [5 jobs you had before you became a scientist]('https://www.nj.com/entertainment/2019/04/what-have-you-done-for-money-in-5-jobs-trend-people-are-sharing-their-work-history-on-twitter.html'). (I love this trend took over a year to reach my clearly, very Australian-centric twitter feed). When I was very young, I used to do administrative chores at my mum's physiotherapy for pocket money. I also played a lot of minesweeper - like a lot.
 
 It was this combination of things that sparked the idea to create [corona sweeper]('https://katerobsau.shinyapps.io/Corona_Sweeper/'). A shiny app where instead of identifying hidden mines, you can use testing to uncover infected individuals in a population. How we choose to test is clearly very important to mitigating virus spread.
 
 ### A comment on sensitivity 
 
-So I actually wrote this code during my second week of working from home in the Netherlands. I wasn't being productive at work, and working on a creative idea in R is an outlet for me. I have wanted to share it for a while, but I was worried that people may find it distasteful. Covid-19 is impacting lives and livelihoods. 
+So I actually wrote this code during my second week of working from home in the Netherlands. I wasn't being productive at work, and working on a creative idea in R is an outlet for me. I have wanted to share it for a while, but I was worried that people may find it distasteful or disrespectful. Covid-19 is impacting lives and livelihoods. 
 
 There are reasons that have since changed my mind about sharing the game:
 
 (i) I have shared it with friends, and friends with family who have had corona. It bought these people joy and that is what matters.
 
-(ii) I recently had a brief period of self-isolation myself, when two friends in my bubble developed Covid-like symptoms. These friends didn't meet the criteria for testing here in the Netherlands, so we still do not know whether why they have had corona or not. Either way, the game is no longer so abstract for me now.
+(ii) I recently had a brief period of self-isolation myself, when two friends in my bubble developed Covid-like symptoms. These friends didn't meet the criteria for testing here in the Netherlands, so we still do not know whether why they have had corona or not. Either way, the game is no longer strictly abstract for me now.
 
-(iii) Game play is a really important tool for learning. I have learnt a lot about the interplay of infection spread, quarantine and testing through playing this simple game. The most interesting part is that even though I am the designer, I didn't know what the optimal strategy. I have only learnt through gameplay and experimenting with the parameter's.
+(iii) Game play is a really important tool for learning. I have learnt a lot about the interplay of infection spread, quarantine and testing through playing this simple game. The most interesting part is that even though I am the designer, I didn't know what the optimal strategy. I have only learnt that through gameplay and experimenting with the parameters.
 
-(iv) The most important point. Some people told me I should make it available through the app store and monetarise it. Turns out I'm a classic academic and don't seek reward for knowledge or hard work. However, I met a wonderful woman from India earlier this year. By following her facebook posts I have realised just how closed my world is to many of the problems faced by people in her country. Her city of Bengal has just been hit by a Cyclone. Given the importance of social distancing to preventing virus spread, the cyclone is going to compound the already very severe impacts of covid-19, such as through increased spread in disaster shelters. So if you enjoy playing this game, you can donate [here]('https://www.edexlive.com/news/2020/may/22/amphancyclone-heres-how-you-can-donate-to-relief-funds-to-help-cyclone-ravaged-bengal-and-odisha-12179.html).
 
 ## Game Set Up
 
