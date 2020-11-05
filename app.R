@@ -91,6 +91,7 @@ server <- function(input, output) {
     # Order:
     # * Get test coordinate
     # * Increase counter on infection period
+    # * Get possible exposures
     # * Update infections
     # * Reveal those with symptoms
     # * Reveal those who recovered
@@ -112,7 +113,7 @@ server <- function(input, output) {
     # Increase counter on infection period
     counter$countervalue <- counter$countervalue + 1
     
-    # Update with new infections
+    # Get possible exposures
     i = which(df$infections$hidden == "I" &
                 df$infections$quarantined == "No")
     get_neighbours <- function(i, I, J){
@@ -129,13 +130,11 @@ server <- function(input, output) {
       return(nbrs)
     }
     neighbours = get_neighbours(i, I, J)
-    # already_quarantined = which(df$infections$quarantined == "Yes")
-    exceptions = i #c(i, already_quarantined)
+    already_quarantined = which(df$infections$quarantined == "Yes")
+    exceptions = c(i, already_quarantined)
     contacts = setdiff(neighbours, exceptions)
-    # contacts = contacts[which(contacts > 0 & contacts <= I*J)]
-    #BUG!!!
-    # Fix needed here, I can't infect people in quarantine with someone not in quarantine
     
+    # Update with new infections
     new_infections = rbinom(length(contacts), 1, setup$prob)
     infected_contacts = contacts[which(new_infections == 1)]
     df$infections$hidden[infected_contacts] = "I"
