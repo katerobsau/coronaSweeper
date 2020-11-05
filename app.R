@@ -20,8 +20,9 @@ quarantine_levels = c("Yes", "No")
 quarantine_labels = c("Quarantined", "No Restrictions")
 prob_infections = c(0.15, 0.2, 0.25)
 game_levels = c("Easy", "Medium", "Hard")
-default_level = game_levels[2]
-default_prob = prob_infections[2]
+default_index = 1
+default_level = game_levels[default_index]
+default_prob = prob_infections[default_index]
 
 # UI
 ui <- basicPage(
@@ -35,7 +36,7 @@ ui <- basicPage(
 
 # Server
 server <- function(input, output) {
-
+  
   # Initialise grid and infection status
   init_data <- expand.grid(X = 1:I, Y = 1:J)
   init_data$shown <- rep("S", I*J)
@@ -70,12 +71,11 @@ server <- function(input, output) {
     setup$prob = prob_infections[i]
   })
 
-  # Time in quarantine
-  # Add this
+  # Possible additions here:
+  # - Variable time in quarantine
+  # - Number of asymptotmatic people
 
-  # # Number of asymptotmatic people
-  # init_data$symptom_time[sample(I*J, 0.05*I*J)] <- NA
-
+  # Set up reactive values
   counter <- reactiveValues(countervalue = 0)
   x_coord <- reactiveValues(ref = NULL)
   y_coord <-reactiveValues(ref = NULL)
@@ -85,60 +85,76 @@ server <- function(input, output) {
                                  num_I_shown = 0,
                                  num_R = 0)
 
+  # Prompt updates with mouse click
   observeEvent(input$plot_click, {
 
-    counter$countervalue <- counter$countervalue + 1
-
-    x = round(as.numeric(input$plot_click$x))
-    x = max(1, x);
-    x = min(x, I);
-    x_coord$ref = x
-
-    y = round(as.numeric(input$plot_click$y))
-    y = max(1, y);
-    y = min(y, J);
-    y_coord$ref = y
-
     # Order:
-    # * Update infections
+    # * Get test coordinate
     # * Increase counter on infection period
+    # * Update infections
     # * Reveal those with symptoms
     # * Reveal those who recovered
     # * Reveal status of the person tested
     # * Quarantine those exposed
     # * Label those exposed
 
+    # Get test coordinate
+    x = round(as.numeric(input$plot_click$x))
+    x = max(1, x);
+    x = min(x, I);
+    x_coord$ref = x
+    
+    y = round(as.numeric(input$plot_click$y))
+    y = max(1, y);
+    y = min(y, J);
+    y_coord$ref = y
+    
+    # Increase counter on infection period
+    counter$countervalue <- counter$countervalue + 1
+    
     # Update with new infections
     i = which(df$infections$hidden == "I" &
-                df$infections$quarantined == "No" ) #&
-                # df$infections$shown != "R")
-    contacts = c((i - 1),
-              (i + 1),
-              (i - I),
-              (i + I))
-    contacts = setdiff(contacts, i)
+                df$infections$quarantined == "No")
+    get_neighbours <- function(i, I, J){
+      # expand grid is by columns not rows
+      # later part of the equation deals with the boundary cases
+      row_index = i%%I + I*(i%%I == 0); 
+      col_index = ceiling(i/I)
+      left_nbr   = i - I + (col_index == 1)*(I*J)
+      right_nbr  = i + I - (col_index == J)*(I*J)
+      top_nbr    = i - 1 + (row_index == 1)*I
+      bottom_nbr = i + 1 - (row_index == I)*I
+      nbrs <- c(left_nbr, right_nbr, top_nbr, bottom_nbr)
+      # nbrs <- c((i - 1), (i + 1), (i - I), (i + I))
+      return(nbrs)
+    }
+    neighbours = get_neighbours(i, I, J)
+    # already_quarantined = which(df$infections$quarantined == "Yes")
+    exceptions = i #c(i, already_quarantined)
+    contacts = setdiff(neighbours, exceptions)
+    # contacts = contacts[which(contacts > 0 & contacts <= I*J)]
     #BUG!!!
     # Fix needed here, I can't infect people in quarantine with someone not in quarantine
-    contacts = contacts[which(contacts > 0 & contacts <= I*J)]
+    
     new_infections = rbinom(length(contacts), 1, setup$prob)
     infected_contacts = contacts[which(new_infections == 1)]
     df$infections$hidden[infected_contacts] = "I"
     df$infections$infection_period[infected_contacts]  = -1
-
+    
     # Increase counter on infection period
-    infectious_cases = df$infections$hidden == "I"
+    infectious_cases = (df$infections$hidden == "I")
     df$infections$infection_period[infectious_cases] =
       df$infections$infection_period[infectious_cases] + 1
 
     # Reveal those with symptoms
-    known_cases = df$infections$infection_period > df$infections$symptom_time
+    known_cases = (df$infections$infection_period > df$infections$symptom_time)
     df$infections$shown[known_cases] = "I"
 
-    # Reval those who recovered
-    recovered_cases = df$infections$infection_period > df$infections$recovery_time
+    # Reveal those who recovered
+    recovered_cases = (df$infections$infection_period > df$infections$recovery_time)
     df$infections$hidden[recovered_cases] = "R"
     df$infections$shown[recovered_cases] = "R"
-
+    
     # Reveal status of the person tested
     vec_ref = (y_coord$ref-1)*J + x_coord$ref
     df$infections$tested[vec_ref] = "tested"
@@ -148,26 +164,15 @@ server <- function(input, output) {
 
     # Quarantine those exposed
     i = which(df$infections$shown == "I")
-    isolating = c(i,
-                 (i - 1),
-                 (i + 1),
-                 (i - I),
-                 (i + I))
+    # isolating = c(i, (i - 1), (i + 1), (i - I), (i + I))
+    isolating = c(i, get_neighbours(i, I, J))
     isolating = isolating[which(isolating > 0 & isolating <= I*J)]
     df$infections$quarantined[isolating] = "Yes"
-
-    # # Label those exposed
-    # exposed_cases = (df$infections$shown == "S" &
-    #                    df$infections$quarantined == "Yes")
-    # df$infections$shown[exposed_cases] = "E"
 
     # Game stats
     game_summary$num_I_shown = sum(df$infections$shown == "I")
     game_summary$num_I_hidden = sum(df$infections$hidden == "I")
     game_summary$num_R = sum(df$infections$shown == "R")
-
-    # i = which(df$infections$hidden == "I")
-    # game_summary$num_I_quarantined = sum(df$infections$quarantined[i] == "Yes")
     game_win = (game_summary$num_I_shown == game_summary$num_I_hidden)
     game_loss = ((game_summary$num_I_hidden + game_summary$num_R) > I*J*perc)
 
