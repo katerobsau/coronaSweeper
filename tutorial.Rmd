@@ -14,39 +14,177 @@ library(kableExtra)
 
 # Game Design {.tabset}
 
-## Why? 
+## Game Rules
 
-### Inspiration 
+### Game Summary
 
-When corona began, uncertainty was high and given my mathematical background I had to resist the strong temptation to become an armchair epidemiologist. I still felt this overwhelming desire to explore the aspects of virus sprerad through data visualisation though, so I channelled my energies into creating this shiny app. 
+The goal of the game is to use testing to discover people within the population who are infected, and to stop the virus spreading. A person will be revealed as infected in two cases, if (i) they are tested, or (ii) they develop symptoms. You will be able to reveal a person's hidden infectious status using a mouse click, and if they are infected they will go into quarantine along with their four closest neighbours. 
 
-One of the earliest and most influential visualisations of the virus spread was from an [article]('https://www.washingtonpost.com/graphics/2020/world/corona-simulator/') in the Washington Post. I think this visualisation is marvellous and have shared it widely with friends and family. Although, for me something does feel missing in this visualisation, aside from people acting like a pinballs in a pinball machine. It is the capacity to interact, and experiment further with aspects of how virus spread works. A more comprehensive look at some of the variables involved is given in this [youtube video]('https://www.youtube.com/watch?v=gxAaO2rsdIs').
+Each new mouse click also starts a new day. Upon each new day, undiscovered infectious people within the population can infect others. Hidden infectious people will be revealed to you if you find them via testing, or when they develop symptoms. If a person develops symptoms they are automatically quarantined along with their closest neighbours. Once in quarantine a person can't infect anyone else. People who have been exhibiting symptoms will eventually transition to the recovered state.
 
-Around the same time, I became aware of the twitter trend [5 jobs you had before you became a scientist]('https://www.nj.com/entertainment/2019/04/what-have-you-done-for-money-in-5-jobs-trend-people-are-sharing-their-work-history-on-twitter.html'). (I love this trend took over a year to reach my clearly, very Australian-centric twitter feed). When I was very young, I used to do administrative chores at my mum's physiotherapy for pocket money. I also played a lot of minesweeper - like a lot.
+You win the game by finding and quarantining all infections through the use of testing. You lose the game though if the virus takes off in the population and over half of the people contract the virus.
 
-It was this combination of things that sparked the idea to create [corona sweeper]('https://katerobsau.shinyapps.io/Corona_Sweeper/'). A shiny app where instead of identifying hidden mines, you can use testing to uncover infected individuals in a population. How we choose to test is clearly very important to mitigating virus spread.
+### Virus Behaviour
 
-### A comment on sensitivity 
+For this game, a person is classfied as one of following infectious states:
+```{r echo = FALSE}
+infection_levels = c("S", "I", "R")
+infection_labels = c("Susceptible", "Infected", "Recovered")
+infection_description = c("Can catch the virus", "Has caught the virus", 
+                          "No longer has the virus")
+infection_table = data.frame("Label" = infection_labels, 
+                             "Letter" = infection_levels, 
+                             "Description" = infection_description)
+kable(infection_table) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
 
-So I actually wrote this code during my second week of working from home in the Netherlands. I wasn't being productive at work, and working on a creative idea in R is an outlet for me. I have wanted to share it for a while, but I was worried that people may find it distasteful or disrespectful. Covid-19 is impacting lives and livelihoods. 
+If a person who is susceptible comes into contact with an infected person they have a chance of catching the virus. If the person catches the virus then their status changes to infected. People who no longer have the the virus are considered recovered. Once a person has recovered will assume they don't return to a susceptible state and can not become infected again. Labelling the state as recovered avoids including a mortality state. 
 
-There are reasons that have since changed my mind about sharing the game:
+### Quaratine 
 
-(i) I have shared it with friends, and friends with family who have had corona. It bought these people joy and that is what matters.
+There is a fourth state a person can be, the exposed state. Exposed people, have come into contact with an infected person, but don't know yet if this exposure has caused them to catch the virus. To prevent the spread of the virus, anyone known to be infected and anyone they've exposed to the virus are automatically quarantined. 
 
-(ii) I recently had a brief period of self-isolation myself, when two friends in my bubble developed Covid-like symptoms. These friends didn't meet the criteria for testing here in the Netherlands, so we still do not know whether why they have had corona or not. Either way, the game is no longer strictly abstract for me now.
+### Hidden Infections
 
-(iii) Game play is a really important tool for learning. I have learnt a lot about the interplay of infection spread, quarantine and testing through playing this simple game. The most interesting part is that even though I am the designer, I didn't know what the optimal strategy. I have only learnt that through gameplay and experimenting with the parameters.
+The game begins with four randomly chosen people who are infected. However, these people's infection status is hidden. Until these hidden infectious people are found and quarantined, they will continue to lead to new infections .
+### Catching the virus (REWRITE THIS BIT)
 
-<!-- (iv) The most important point. Some people told me I should make it available through the app store and monetarise it. Turns out I'm a classic academic and don't seek reward for knowledge or hard work. However, I met a wonderful woman from India earlier this year. By following her facebook posts I have realised just how closed my world is to many of the problems faced by people in her country. Her city of Bengal has just been hit by a Cyclone. Given the importance of social distancing to preventing virus spread, the cyclone is going to compound the already very severe impacts of covid-19, such as through increased spread in disaster shelters. So I have decided to put this work towards a good cause, and if you enjoy playing this game please donate [here]('https://www.edexlive.com/news/2020/may/22/amphancyclone-heres-how-you-can-donate-to-relief-funds-to-help-cyclone-ravaged-bengal-and-odisha-12179.html). -->
+A susceptible person can catch the virus from an infected person. 
+<!-- New infections can only happen between people who are not quarantined.  -->
+Below we have set the probability of infection to 1/4. So we expect on average one of the four neighbours will be infected. This is of course random, so in practice none of the neighbours could get infected or all of them could. This is part of what makes the game interesting!
 
-## Game Set Up
+```{r eval = FALSE}
+ # Update with new infections
+  
+  # Get locations of infected people who can infect others
+    possible_virus_transmitters = which(init_data$hidden == "I" & init_data$quarantined == "No") 
 
-Here I give the code needed to create the `ggplot` game board. Hopefully, it looks clean and simple, but it actually took some thinking!
+  # Find the possible contacts who might be newly infected
+    already_quarantined = which(init_data$quarantined == "Yes")
+    exceptions = c(possible_virus_transmitters, already_quarantined)
+    contacts = setdiff(neighbours, exceptions)
+    
+  # Get new infections  
+    setup = data.frame(prob = 1/4)
+    new_infections = rbinom(length(contacts), 1, setup$prob)
+    infected_contacts = contacts[which(new_infections == 1)]
+    
+  # Update susceptible status in data frame  
+    init_data$hidden[infected_contacts] = "I"
+    init_data$infection_period[infected_contacts]  = -1
+```
+
+In probability, how an infection occurs between a susceptible and infected person is modelled using a Bernoulli random variable. Bernoulli variables have two possible outcomes, ie. heads or tails, yes or no, true or false. In our case, infected or not infected. If you are performing multiple Bernoulli trials, then we model this using a binonmial variable, ie how many heads in 10 coin flips, or how many infections occur in the four neighbours. This is what the function `rbinom()` does.
+
+### Symptoms and Recovery
+
+For the game to mirror the virus characteristics, there should be a period of time before an infected person will show symptoms. On average the WHO says symptoms will show after 6 days. 
+https://www.who.int/emergencies/diseases/novel-coronavirus-2019/question-and-answers-hub/q-a-detail/q-a-coronaviruses
+In the game, a person will therefore shows symptoms after a random number of days, with the average time until symptoms being 6 days. Once symptoms are revealed, that person and their four neighbours are quarantined.
+
+The WHO also says people with mild cases are expected to recover within two weeks
+https://www.who.int/dg/speeches/detail/who-director-general-s-opening-remarks-at-the-media-briefing-on-covid-19---24-february-2020
+Similarly, the number of days under a person recovers is randomly simulated, with an average recovery time of 14 days. 
+
+### Testing
+
+Testing can be used to uncover people who are yet to show symptoms but are infected. A tested person who is revealed as infected is automatically quarantined along with their neighbours. Careful however, a person who was tested today and came back negative, doesn't necessary mean they can't get infected tomorrow or the day after. It therefore may be necessary to test the same person more than once.
+
+## R Set Up 
+
+### Contact Network
+
+We store the information about the people in a data frame called `init_data`. This data frame also gives the location of people within a grid that forms our game board and contact network.
+```{r}
+# board dimensions (rows by columns)
+I = 20; J = 20;
+
+# initialise the board
+init_data <- expand.grid(X = 1:I, Y = 1:J) %>% as.data.frame()
+```
+
+This data frame contains all the details about a person's infection status and related statues, including quarantine status and test status.
+
+### Infectious Status
+
+There is a column for a person's known infection status, and to start everyone in labelled as susceptible. 
+
+```{r}
+infection_levels = c("S", "I", "R")
+infection_labels = c("Susceptible", "Infected", "Recovered")
+init_data$shown = rep("S", nrow(init_data))
+# init_data$shown <- factor(init_data$shown, levels = infection_levels)
+```
+
+<!-- You might notice, there is both a levels and labels vector. The levels are to keep the internal code concise and clear. The labels are for what we want to appear in the plot legend. -->
+
+### Hidden Infectious Status
+
+There is another column that stores the true and hidden infectious status. 
+At random four people are initialised as infectious. 
+
+```{r eval = FALSE}
+start_num_infections = 4 
+init_data$hidden <- rep("S", I*J) 
+initial_infections <- sample(1:(I*J), start_num_infections)
+init_data$hidden[initial_infections] <- "I"
+# init_data$hidden <- factor(init_data$hidden, levels = infection_levels)
+```
+
+### Quarantine Status
+
+Everyone begins the game not in quarantine.
+
+```{r}
+quarantine_levels = c("Yes", "No")
+quarantine_labels = c("Quarantined", "No Restrictions")
+init_data$quarantined <- rep("No", I*J)
+```
+
+### Testing 
+
+Everybody begins the game as untested. 
+
+```{r}
+test_levels = c("tested", "unknown")
+test_labels = c("Tested", "Not Tested")
+init_data$tested <- rep("unknown", I*J)
+```
+
+### Infection Time
+
+We also keep track of a state called infection time. This will be used to keep track of when a person becomes infected, when their symptoms will be revealed and when they will recover. The infection time is not shown the game player and is for internal use only. At the beginning of the game before any days have passed, the infection period is set to zero.
+
+```{r eval = FALSE}
+# Infection time
+init_data$infection_period <- rep(NA, I*J)
+init_data$infection_period[initial_infections] <- 0
+```
+
+### Symptoms and recovery
+
+Poisson random variables are used to simulate the time until the symptoms arrive and the time until a patient recovery.
+
+```{r eval = FALSE}
+symptom_lambda = 5
+init_data$symptom_time <- rpois(I*J, lambda = symptom_lambda)
+
+recovery_lambda = 14
+init_data$recovery_time <- init_data$symptom_time + rpois(I*J, lambda = recovery_lambda)
+```
+
+### Next Steps
+
+The next step is to set up the game board. After this we can show how the game dynamics work in R using the mouse click. 
+
+## Board Design
+
+Below is the code needed to create the `ggplot` game board. Hopefully, it looks clean and simple, but it actually took some thinking!
 
 ### Board
 
-I decided to use a standard looking minesweeper board. You can achieve this in a range of ways. Here I've used `geom_point()` and a square point type, `shape = 15`. This shape selection gives us the flexibility we need later.
+The board is designed to resemble the standard minesweeper board. This can be achieved in a range of ways, but here I've used `geom_point()` and a square point type, `shape = 15`. This shape selection gives us the flexibility we need later.
 
 ```{r}
 # board parameters
@@ -217,7 +355,50 @@ board <- board +
 board
 ```
 
-## Shiny and Interactivity
+## Interactivity
+
+With each new plot click the following must happen:
+
+* Get test coordinate
+* Increase counter on infection period
+* Get possible exposures
+* Update infections
+* Reveal those with symptoms
+* Reveal those who recovered
+* Reveal status of the person tested
+* Quarantine those exposed
+* Label those exposed
+
+### Catching the virus (REWRITE THIS BIT)
+
+A susceptible person can catch the virus from an infected person. 
+<!-- New infections can only happen between people who are not quarantined.  -->
+Below we have set the probability of infection to 1/4. So we expect on average one of the four neighbours will be infected. This is of course random, so in practice none of the neighbours could get infected or all of them could. This is part of what makes the game interesting!
+
+```{r eval = FALSE}
+ # Update with new infections
+  
+  # Get locations of infected people who can infect others
+    possible_virus_transmitters = which(init_data$hidden == "I" & init_data$quarantined == "No") 
+
+  # Find the possible contacts who might be newly infected
+    already_quarantined = which(init_data$quarantined == "Yes")
+    exceptions = c(possible_virus_transmitters, already_quarantined)
+    contacts = setdiff(neighbours, exceptions)
+    
+  # Get new infections  
+    setup = data.frame(prob = 1/4)
+    new_infections = rbinom(length(contacts), 1, setup$prob)
+    infected_contacts = contacts[which(new_infections == 1)]
+    
+  # Update susceptible status in data frame  
+    init_data$hidden[infected_contacts] = "I"
+    init_data$infection_period[infected_contacts]  = -1
+```
+
+In probability, how an infection occurs between a susceptible and infected person is modelled using a Bernoulli random variable. Bernoulli variables have two possible outcomes, ie. heads or tails, yes or no, true or false. In our case, infected or not infected. If you are performing multiple Bernoulli trials, then we model this using a binonmial variable, ie how many heads in 10 coin flips, or how many infections occur in the four neighbours. This is what the function `rbinom()` does.
+
+
 
 Before we get too much futher into game design, I think its important to review the shiny basics needed to create the interactivity. I will not cover shiny in a comprehensive way, for that I would highly recommend these [tutorials](  https://shiny.rstudio.com/tutorial/written-tutorial/lesson1/). Instead I will present code snippets in their simplest form that will parallel the interactivity required.
 
@@ -354,157 +535,35 @@ asdf
 ### Hosting Online
 asdf
 
-## Virus Behaviour
+## Why? 
 
-### Infection States
+### Inspiration 
 
-In the standard mathematical modelling of epidemic spread, a person is generally classfied in one of following states:
+When corona began, uncertainty was high and given my mathematical background I had to resist the strong temptation to become an armchair epidemiologist. I still felt this overwhelming desire to explore the aspects of virus sprerad through data visualisation though, so I channelled my energies into creating this shiny app. 
 
-```{r echo = FALSE}
-infection_levels = c("S", "I", "R")
-infection_labels = c("Susceptible", "Infected", "Recovered")
-infection_description = c("Can catch the virus", "Has caught the virus", 
-                          "No longer has the virus")
-infection_table = data.frame("Label" = infection_labels, 
-                             "Letter" = infection_levels, 
-                             "Description" = infection_description)
-kable(infection_table) %>%
-  kable_styling(bootstrap_options = c("striped", "hover"))
-```
+One of the earliest and most influential visualisations of the virus spread was from an [article]('https://www.washingtonpost.com/graphics/2020/world/corona-simulator/') in the Washington Post. I think this visualisation is marvellous and have shared it widely with friends and family. Although, for me something does feel missing in this visualisation, aside from people acting like a pinballs in a pinball machine. It is the capacity to interact, and experiment further with aspects of how virus spread works. A more comprehensive look at some of the variables involved is given in this [youtube video]('https://www.youtube.com/watch?v=gxAaO2rsdIs').
 
-If a person who is susceptible comes into contact with an infected person they have a chance of catching the virus. If the person catches the virus, their state changes to infected. People who no longer have the the virus are considered recovered. Once a person has recovered will assume they don't return to a susceptible state and can not become infected again. Labelling the state as recovered also avoids including a specific mortality state. 
+Around the same time, I became aware of the twitter trend [5 jobs you had before you became a scientist]('https://www.nj.com/entertainment/2019/04/what-have-you-done-for-money-in-5-jobs-trend-people-are-sharing-their-work-history-on-twitter.html'). (I love this trend took over a year to reach my clearly, very Australian-centric twitter feed). When I was very young, I used to do administrative chores at my mum's physiotherapy for pocket money. I also played a lot of minesweeper - like a lot.
 
-<!-- # To store the susceptible state of a person, a new column called `shown` is added to our data frame.  -->
-We store the infection states in a data frame called `init_data`. This data frame also gives the location of people within a grid that forms our game board.
+It was this combination of things that sparked the idea to create [corona sweeper]('https://katerobsau.shinyapps.io/Corona_Sweeper/'). A shiny app where instead of identifying hidden mines, you can use testing to uncover infected individuals in a population. How we choose to test is clearly very important to mitigating virus spread.
 
-```{r}
-# board dimensions (rows by columns)
-I = 20; J = 20;
+### A comment on sensitivity 
 
-# initialise the board
-init_data <- expand.grid(X = 1:I, Y = 1:J) %>% as.data.frame()
+So I actually wrote this code during my second week of working from home in the Netherlands. I wasn't being productive at work, and working on a creative idea in R is an outlet for me. I have wanted to share it for a while, but I was worried that people may find it distasteful or disrespectful. Covid-19 is impacting lives and livelihoods. 
 
-# add a new infectious state to the data frame
-infection_levels = c("S", "I", "R")
-infection_labels = c("Susceptible", "Infected", "Recovered")
-init_data$shown = rep("S", nrow(init_data))
+There are reasons that have since changed my mind about sharing the game:
 
-# # example infection
-# centre_cell = I*(J/2) + J/2
-# init_data$shown[centre_cell] = "I" 
-# init_data$shown <- factor(init_data$shown, levels = infection_levels)
-```
+(i) I have shared it with friends, and friends with family who have had corona. It bought these people joy and that is what matters.
+
+(ii) I recently had a brief period of self-isolation myself, when two friends in my bubble developed Covid-like symptoms. These friends didn't meet the criteria for testing here in the Netherlands, so we still do not know whether why they have had corona or not. Either way, the game is no longer strictly abstract for me now.
+
+(iii) Game play is a really important tool for learning. I have learnt a lot about the interplay of infection spread, quarantine and testing through playing this simple game. The most interesting part is that even though I am the designer, I didn't know what the optimal strategy. I have only learnt that through gameplay and experimenting with the parameters.
+
+<!-- (iv) The most important point. Some people told me I should make it available through the app store and monetarise it. Turns out I'm a classic academic and don't seek reward for knowledge or hard work. However, I met a wonderful woman from India earlier this year. By following her facebook posts I have realised just how closed my world is to many of the problems faced by people in her country. Her city of Bengal has just been hit by a Cyclone. Given the importance of social distancing to preventing virus spread, the cyclone is going to compound the already very severe impacts of covid-19, such as through increased spread in disaster shelters. So I have decided to put this work towards a good cause, and if you enjoy playing this game please donate [here]('https://www.edexlive.com/news/2020/may/22/amphancyclone-heres-how-you-can-donate-to-relief-funds-to-help-cyclone-ravaged-bengal-and-odisha-12179.html). -->
+
+
 
 <!-- You might notice, there is both a levels and labels vector. The levels are to keep the internal code concise and clear. The labels are for what we want to appear in the plot legend.   -->
-
-### Quaratine 
-
-There is a fourth state a person can be, the exposed state. Exposed people, have come into contact with an infected person, but don't know yet if they have contracted virus. To prevent the further spread of the virus, people who are known to be infected or exposed go into quarantine. 
-
-```{r}
-
-# Add a new exposure status to our data frame called quarantine
-quarantine_levels = c("Yes", "No")
-quarantine_labels = c("Quarantined", "No Restrictions")
-init_data$quarantined <- rep("No", I*J)
-init_data$quarantined <- factor(init_data$quarantined, levels = quarantine_levels)
-
-```
-
-### Initial Infections
-
-The game begins with four individuals within the population who are infected. These people are chosen randomly and their infection status is hidden.
-
-```{r eval = FALSE}
-# Add a state that keeps track of the hidden infection status
-start_num_infections = 4 
-init_data$hidden <- rep("S", I*J) 
-initial_infections <- sample(1:(I*J), start_num_infections)
-init_data$hidden[initial_infections] <- "I"
-init_data$hidden <- factor(init_data$hidden, levels = infection_levels)
-```
-
-### Catching the virus 
-
-A susceptible person can catch the virus from an infected person. 
-<!-- New infections can only happen between people who are not quarantined.  -->
-Below we have set the probability of infection to 1/4. So we expect on average one of the four neighbours will be infected. This is of course random, so in practice none of the neighbours could get infected or all of them could. This is part of what makes the game interesting!
-
-```{r eval = FALSE}
- # Update with new infections
-  
-  # Get locations of infected people who can infect others
-    possible_virus_transmitters = which(init_data$hidden == "I" & init_data$quarantined == "No") 
-
-  # Find the possible contacts who might be newly infected
-    already_quarantined = which(init_data$quarantined == "Yes")
-    exceptions = c(possible_virus_transmitters, already_quarantined)
-    contacts = setdiff(neighbours, exceptions)
-    
-  # Get new infections  
-    setup = data.frame(prob = 1/4)
-    new_infections = rbinom(length(contacts), 1, setup$prob)
-    infected_contacts = contacts[which(new_infections == 1)]
-    
-  # Update susceptible status in data frame  
-    init_data$hidden[infected_contacts] = "I"
-    init_data$infection_period[infected_contacts]  = -1
-```
-
-In probability, how an infection occurs between a susceptible and infected person is modelled using a Bernoulli random variable. Bernoulli variables have two possible outcomes, ie. heads or tails, yes or no, true or false. In our case, infected or not infected. If you are performing multiple Bernoulli trials, then we model this using a binonmial variable, ie how many heads in 10 coin flips, or how many infections occur in the four neighbours. This is what the function `rbinom()` does.
-
-### Symptoms and Recovery
-
-For the game to mirror the virus characteristics, we want there to be a period of time before an infected person will show symptoms. One average the WHO says symptoms will show after 6 days. 
-https://www.who.int/emergencies/diseases/novel-coronavirus-2019/question-and-answers-hub/q-a-detail/q-a-coronaviruses
-
-The WHO also says people with mild cases are expected to recover within two weeks
-https://www.who.int/dg/speeches/detail/who-director-general-s-opening-remarks-at-the-media-briefing-on-covid-19---24-february-2020
-
-We add these two states to our data frame.
-```{r eval = FALSE}
-symptom_lambda = 5
-recovery_lambda = 14
-
-# Time til symptoms show
-init_data$symptom_time <- rpois(I*J, lambda = symptom_lambda)
-
-# Time til recovery
-init_data$recovery_time <- init_data$symptom_time + rpois(I*J, lambda = recovery_lambda)
-
-```
-
-Poisson random variables are used to simulate the time until the symptoms arrive and the time until patient recovery.
-
-We also add one more state called infection time. This will be used to keep track of when a person becomes infected, when their symptoms will be revealed and when they will recover.
-```{r eval = FALSE}
-# Infection time
-init_data$infection_period <- rep(NA, I*J)
-init_data$infection_period[initial_infections] <- 0
-```
-
- 
-### Testing 
-
-A final column is needed for person's test status. 
-
-```{r}
-# add a tested column to our data frame
-test_levels = c("tested", "unknown")
-test_labels = c("Tested", "Not Tested")
-init_data$tested <- rep("unknown", I*J)
-init_data$tested <- factor(init_data$tested, levels =
-                             test_levels)
-init_data$tested[centre_cell] = "tested"
-```
-
-
-### Game play 
-
-The goal of the game is to use testing to discover people within the population who are infected, and to stop the virus spreading. The person will be revealed as infected in two cases, if (i) they are tested, or (ii) they develop symptoms. With each mouse click you will be able to reveal a person's hidden infectious status, and if they are infected they will go into quarantine along with their four neighbours. Each new mouse also heralds a new day. Therefore new infections can occur because of undiscovered infectios people within the population. Upon a new mouse click, some hidden infectious people may also develop symptoms, and be quarantined automatically along with their neighbours. People who have been exhibiting symptoms may also recover. 
-The game ends by either finding and quarantining all infections through the use of testing, or if over half of the squares contract the virus.
-
-### Showing symptoms
 
 <!-- For each person we now have an entry in each of the columns: `x`, `y`, `shown`, `quarantined`, `tested` and `hidden`. -->
 
