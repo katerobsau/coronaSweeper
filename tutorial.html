@@ -327,7 +327,7 @@ init_data$quarantined &lt;- factor(init_data$quarantined, levels = quarantine_le
     return(nbrs)
   }
 
-# Put nearby neighbours in quarantine
+# Put nearby infectious person and their neighbours in quarantine
 nbrs = get_neighbours(centre_cell, I, J)
 init_data$quarantined[c(centre_cell, nbrs)] = &quot;Yes&quot;</code></pre>
 <p>We will use the undelying grid squares to show if a person is in quarantine or not. Here, I have also made the square slightly transparent using <code>alpha</code>, so the susceptible state is clearly distinguishable from the quarantine state.</p>
@@ -529,21 +529,101 @@ shinyApp(ui, server)</code></pre>
 </div>
 <div id="virus-behaviour" class="section level2">
 <h2>Virus Behaviour</h2>
-<p>The logic of this section follows on from game set up.</p>
+<div id="infection-states" class="section level3">
+<h3>Infection States</h3>
+<p>In the standard mathematical modelling of epidemic spread, a person is generally classfied in one of following states:</p>
+<table class="table table-striped table-hover" style="margin-left: auto; margin-right: auto;">
+<thead>
+<tr>
+<th style="text-align:left;">
+Label
+</th>
+<th style="text-align:left;">
+Letter
+</th>
+<th style="text-align:left;">
+Description
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+Susceptible
+</td>
+<td style="text-align:left;">
+S
+</td>
+<td style="text-align:left;">
+Can catch the virus
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Infected
+</td>
+<td style="text-align:left;">
+I
+</td>
+<td style="text-align:left;">
+Has caught the virus
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Recovered
+</td>
+<td style="text-align:left;">
+R
+</td>
+<td style="text-align:left;">
+No longer has the virus
+</td>
+</tr>
+</tbody>
+</table>
+<p>If a person who is susceptible comes into contact with an infected person they have a chance of catching the virus. If the person catches the virus, their state changes to infected. People who no longer have the the virus are considered recovered. Once a person has recovered will assume they don't return to a susceptible state and can not become infected again. Labelling the state as recovered also avoids including a specific mortality state.</p>
+<!-- # To store the susceptible state of a person, a new column called `shown` is added to our data frame.  -->
+<p>We store the infection states in a data frame called <code>init_data</code>. This data frame also gives the location of people within a grid that forms our game board.</p>
+<pre class="r"><code># board dimensions (rows by columns)
+I = 20; J = 20;
+
+# initialise the board
+init_data &lt;- expand.grid(X = 1:I, Y = 1:J) %&gt;% as.data.frame()
+
+# add a new infectious state to the data frame
+infection_levels = c(&quot;S&quot;, &quot;I&quot;, &quot;R&quot;)
+infection_labels = c(&quot;Susceptible&quot;, &quot;Infected&quot;, &quot;Recovered&quot;)
+init_data$shown = rep(&quot;S&quot;, nrow(init_data))
+
+# # example infection
+# centre_cell = I*(J/2) + J/2
+# init_data$shown[centre_cell] = &quot;I&quot; 
+# init_data$shown &lt;- factor(init_data$shown, levels = infection_levels)</code></pre>
+<!-- You might notice, there is both a levels and labels vector. The levels are to keep the internal code concise and clear. The labels are for what we want to appear in the plot legend.   -->
+</div>
+<div id="quaratine-1" class="section level3">
+<h3>Quaratine</h3>
+<p>There is a fourth state a person can be, the exposed state. Exposed people, have come into contact with an infected person, but don't know yet if they have contracted virus. To prevent the further spread of the virus, people who are known to be infected or exposed go into quarantine.</p>
+<pre class="r"><code># Add a new exposure status to our data frame called quarantine
+quarantine_levels = c(&quot;Yes&quot;, &quot;No&quot;)
+quarantine_labels = c(&quot;Quarantined&quot;, &quot;No Restrictions&quot;)
+init_data$quarantined &lt;- rep(&quot;No&quot;, I*J)
+init_data$quarantined &lt;- factor(init_data$quarantined, levels = quarantine_levels)</code></pre>
+</div>
 <div id="initial-infections" class="section level3">
 <h3>Initial Infections</h3>
-<p>The game begins with four individuals within the population who are infected. These people are chosen randomly and their infection status is hidden. The person will be revealed as infected in two cases, if (i) they are tested, or (ii) they develop symptoms. The goal of the game is to use testing to discover people within the population who are infected, and to stop the virus spreading.</p>
-<pre class="r"><code># add a hidden state that keeps track of infection status
+<p>The game begins with four individuals within the population who are infected. These people are chosen randomly and their infection status is hidden.</p>
+<pre class="r"><code># Add a state that keeps track of the hidden infection status
 start_num_infections = 4 
 init_data$hidden &lt;- rep(&quot;S&quot;, I*J) 
 initial_infections &lt;- sample(1:(I*J), start_num_infections)
 init_data$hidden[initial_infections] &lt;- &quot;I&quot;
 init_data$hidden &lt;- factor(init_data$hidden, levels = infection_levels)</code></pre>
-<p>For each person we now have an entry in each of the columns: <code>x</code>, <code>y</code>, <code>shown</code>, <code>quarantined</code>, <code>tested</code> and <code>hidden</code>.</p>
 </div>
 <div id="catching-the-virus" class="section level3">
 <h3>Catching the virus</h3>
-<p>A susceptible person can catch the virus from an infected person. New infections can only happen between people who are not quarantined. Below we have set the probability of infection to 1/4. So we expect on average one of the four neighbours will be infected. This is of course random, so in practice none of the neighbours could get infected or all of them could. This is part of what makes the game interesting!</p>
+<p>A susceptible person can catch the virus from an infected person. <!-- New infections can only happen between people who are not quarantined.  --> Below we have set the probability of infection to 1/4. So we expect on average one of the four neighbours will be infected. This is of course random, so in practice none of the neighbours could get infected or all of them could. This is part of what makes the game interesting!</p>
 <pre class="r"><code> # Update with new infections
   
   # Get locations of infected people who can infect others
@@ -582,6 +662,25 @@ init_data$recovery_time &lt;- init_data$symptom_time + rpois(I*J, lambda = recov
 <pre class="r"><code># Infection time
 init_data$infection_period &lt;- rep(NA, I*J)
 init_data$infection_period[initial_infections] &lt;- 0</code></pre>
+</div>
+<div id="testing-1" class="section level3">
+<h3>Testing</h3>
+<p>A final column is needed for person's test status.</p>
+<pre class="r"><code># add a tested column to our data frame
+test_levels = c(&quot;tested&quot;, &quot;unknown&quot;)
+test_labels = c(&quot;Tested&quot;, &quot;Not Tested&quot;)
+init_data$tested &lt;- rep(&quot;unknown&quot;, I*J)
+init_data$tested &lt;- factor(init_data$tested, levels =
+                             test_levels)
+init_data$tested[centre_cell] = &quot;tested&quot;</code></pre>
+</div>
+<div id="game-play" class="section level3">
+<h3>Game play</h3>
+<p>The goal of the game is to use testing to discover people within the population who are infected, and to stop the virus spreading. The person will be revealed as infected in two cases, if (i) they are tested, or (ii) they develop symptoms. With each mouse click you will be able to reveal a person's hidden infectious status, and if they are infected they will go into quarantine along with their four neighbours. Each new mouse also heralds a new day. Therefore new infections can occur because of undiscovered infectios people within the population. Upon a new mouse click, some hidden infectious people may also develop symptoms, and be quarantined automatically along with their neighbours. People who have been exhibiting symptoms may also recover. The game ends by either finding and quarantining all infections through the use of testing, or if over half of the squares contract the virus.</p>
+</div>
+<div id="showing-symptoms" class="section level3">
+<h3>Showing symptoms</h3>
+<!-- For each person we now have an entry in each of the columns: `x`, `y`, `shown`, `quarantined`, `tested` and `hidden`. -->
 <!-- ### Reactivity  -->
 <!-- Counter  -->
 <!-- new infections > infection period > symtpom show >  recovery show > tested > quarantine  -->

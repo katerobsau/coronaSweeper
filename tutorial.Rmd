@@ -356,25 +356,79 @@ asdf
 
 ## Virus Behaviour
 
-The logic of this section follows on from game set up. 
+### Infection States
+
+In the standard mathematical modelling of epidemic spread, a person is generally classfied in one of following states:
+
+```{r echo = FALSE}
+infection_levels = c("S", "I", "R")
+infection_labels = c("Susceptible", "Infected", "Recovered")
+infection_description = c("Can catch the virus", "Has caught the virus", 
+                          "No longer has the virus")
+infection_table = data.frame("Label" = infection_labels, 
+                             "Letter" = infection_levels, 
+                             "Description" = infection_description)
+kable(infection_table) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+If a person who is susceptible comes into contact with an infected person they have a chance of catching the virus. If the person catches the virus, their state changes to infected. People who no longer have the the virus are considered recovered. Once a person has recovered will assume they don't return to a susceptible state and can not become infected again. Labelling the state as recovered also avoids including a specific mortality state. 
+
+<!-- # To store the susceptible state of a person, a new column called `shown` is added to our data frame.  -->
+We store the infection states in a data frame called `init_data`. This data frame also gives the location of people within a grid that forms our game board.
+
+```{r}
+# board dimensions (rows by columns)
+I = 20; J = 20;
+
+# initialise the board
+init_data <- expand.grid(X = 1:I, Y = 1:J) %>% as.data.frame()
+
+# add a new infectious state to the data frame
+infection_levels = c("S", "I", "R")
+infection_labels = c("Susceptible", "Infected", "Recovered")
+init_data$shown = rep("S", nrow(init_data))
+
+# # example infection
+# centre_cell = I*(J/2) + J/2
+# init_data$shown[centre_cell] = "I" 
+# init_data$shown <- factor(init_data$shown, levels = infection_levels)
+```
+
+<!-- You might notice, there is both a levels and labels vector. The levels are to keep the internal code concise and clear. The labels are for what we want to appear in the plot legend.   -->
+
+### Quaratine 
+
+There is a fourth state a person can be, the exposed state. Exposed people, have come into contact with an infected person, but don't know yet if they have contracted virus. To prevent the further spread of the virus, people who are known to be infected or exposed go into quarantine. 
+
+```{r}
+
+# Add a new exposure status to our data frame called quarantine
+quarantine_levels = c("Yes", "No")
+quarantine_labels = c("Quarantined", "No Restrictions")
+init_data$quarantined <- rep("No", I*J)
+init_data$quarantined <- factor(init_data$quarantined, levels = quarantine_levels)
+
+```
 
 ### Initial Infections
 
-The game begins with four individuals within the population who are infected. These people are chosen randomly and their infection status is hidden. The person will be revealed as infected in two cases, if (i) they are tested, or (ii) they develop symptoms. The goal of the game is to use testing to discover people within the population who are infected, and to stop the virus spreading.
+The game begins with four individuals within the population who are infected. These people are chosen randomly and their infection status is hidden.
 
 ```{r eval = FALSE}
-# add a hidden state that keeps track of infection status
+# Add a state that keeps track of the hidden infection status
 start_num_infections = 4 
 init_data$hidden <- rep("S", I*J) 
 initial_infections <- sample(1:(I*J), start_num_infections)
 init_data$hidden[initial_infections] <- "I"
 init_data$hidden <- factor(init_data$hidden, levels = infection_levels)
 ```
-For each person we now have an entry in each of the columns: `x`, `y`, `shown`, `quarantined`, `tested` and `hidden`.
 
 ### Catching the virus 
 
-A susceptible person can catch the virus from an infected person. New infections can only happen between people who are not quarantined. Below we have set the probability of infection to 1/4. So we expect on average one of the four neighbours will be infected. This is of course random, so in practice none of the neighbours could get infected or all of them could. This is part of what makes the game interesting!
+A susceptible person can catch the virus from an infected person. 
+<!-- New infections can only happen between people who are not quarantined.  -->
+Below we have set the probability of infection to 1/4. So we expect on average one of the four neighbours will be infected. This is of course random, so in practice none of the neighbours could get infected or all of them could. This is part of what makes the game interesting!
 
 ```{r eval = FALSE}
  # Update with new infections
@@ -428,6 +482,33 @@ We also add one more state called infection time. This will be used to keep trac
 init_data$infection_period <- rep(NA, I*J)
 init_data$infection_period[initial_infections] <- 0
 ```
+
+ 
+### Testing 
+
+A final column is needed for person's test status. 
+
+```{r}
+# add a tested column to our data frame
+test_levels = c("tested", "unknown")
+test_labels = c("Tested", "Not Tested")
+init_data$tested <- rep("unknown", I*J)
+init_data$tested <- factor(init_data$tested, levels =
+                             test_levels)
+init_data$tested[centre_cell] = "tested"
+```
+
+
+### Game play 
+
+The goal of the game is to use testing to discover people within the population who are infected, and to stop the virus spreading. The person will be revealed as infected in two cases, if (i) they are tested, or (ii) they develop symptoms. With each mouse click you will be able to reveal a person's hidden infectious status, and if they are infected they will go into quarantine along with their four neighbours. Each new mouse also heralds a new day. Therefore new infections can occur because of undiscovered infectios people within the population. Upon a new mouse click, some hidden infectious people may also develop symptoms, and be quarantined automatically along with their neighbours. People who have been exhibiting symptoms may also recover. 
+The game ends by either finding and quarantining all infections through the use of testing, or if over half of the squares contract the virus.
+
+### Showing symptoms
+
+<!-- For each person we now have an entry in each of the columns: `x`, `y`, `shown`, `quarantined`, `tested` and `hidden`. -->
+
+
 
 <!-- ### Reactivity  -->
 
