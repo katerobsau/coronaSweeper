@@ -20,7 +20,7 @@ quarantine_levels = c("Yes", "No")
 quarantine_labels = c("Quarantined", "No Restrictions")
 prob_infections = c(0.15, 0.2, 0.25)
 game_levels = c("Easy", "Medium", "Hard")
-default_index = 1
+default_index = 2
 default_level = game_levels[default_index]
 default_prob = prob_infections[default_index]
 
@@ -37,33 +37,50 @@ ui <- basicPage(
 # Server
 server <- function(input, output) {
   
-  # Initialise grid and infection status
+  # Initialise grid and displayed infection status
   init_data <- expand.grid(X = 1:I, Y = 1:J)
   init_data$shown <- rep("S", I*J)
+  init_data$shown <- factor(init_data$shown, levels = infection_levels)
+  
+  # Initialise quarantine state
+  init_data$quarantined <- rep("No", I*J)
+  init_data$quarantined <- factor(init_data$quarantined, levels = quarantine_levels)
+  
+  # Initialise test state
+  init_data$tested <- rep("unknown", I*J)
+  init_data$tested <- factor(init_data$tested, levels = test_levels)
+  
+  # Randomly initialise the hidden infections
   init_data$hidden <- rep("S", I*J)
   initial_infections <- sample(1:(I*J), start_num_infections)
   init_data$hidden[initial_infections] <- "I"
   init_data$hidden <- factor(init_data$hidden, levels = infection_levels)
-  init_data$shown <- factor(init_data$shown, levels = infection_levels)
-
-  # Infection time
+  
+  # Initialise the infection time
   init_data$infection_period <- rep(NA, I*J)
   init_data$infection_period[initial_infections] <- 0
 
-  # Time til symptoms show
+  # Randomly initialise the time until symptoms show
   init_data$symptom_time <- rpois(I*J, lambda = symptom_lambda)
 
-  # Time til recovery
+  # Randomly initialise the time until recovery
   init_data$recovery_time <- init_data$symptom_time + rpois(I*J, lambda = recovery_lambda)
 
-  # In Quarantine
-  init_data$quarantined <- rep("No", I*J)
-  init_data$quarantined <- factor(init_data$quarantined, levels = quarantine_levels)
-
-  # Tested
-  init_data$tested <- rep("unknown", I*J)
-  init_data$tested <- factor(init_data$tested, levels = test_levels)
-
+  # A function to get the neighbours for infections and quaranting
+  get_neighbours <- function(i, I, J){
+    # indexing is by column first then rows 
+    row_index = i%%I + I*(i%%I == 0); 
+    col_index = ceiling(i/I)
+    left_nbr   = i - I + (col_index == 1)*(I*J)
+    right_nbr  = i + I - (col_index == J)*(I*J)
+    top_nbr    = i - 1 + (row_index == 1)*I
+    bottom_nbr = i + 1 - (row_index == I)*I
+    # later part of each nbr equation addresses boundary cases
+    # the board wraps like on a taurus
+    nbrs <- c(left_nbr, right_nbr, top_nbr, bottom_nbr)
+    return(nbrs)
+  }
+  
   # Set probability of infection
   setup <- reactiveValues(prob = default_prob)
   observeEvent(input$level,{
@@ -84,7 +101,7 @@ server <- function(input, output) {
                                  num_I_hidden = start_num_infections,
                                  num_I_shown = 0,
                                  num_R = 0)
-
+  
   # Prompt updates with mouse click
   observeEvent(input$plot_click, {
 
@@ -116,19 +133,6 @@ server <- function(input, output) {
     # Get possible exposures
     i = which(df$infections$hidden == "I" &
                 df$infections$quarantined == "No")
-    get_neighbours <- function(i, I, J){
-      # expand grid is by columns not rows
-      # later part of the equation deals with the boundary cases
-      row_index = i%%I + I*(i%%I == 0); 
-      col_index = ceiling(i/I)
-      left_nbr   = i - I + (col_index == 1)*(I*J)
-      right_nbr  = i + I - (col_index == J)*(I*J)
-      top_nbr    = i - 1 + (row_index == 1)*I
-      bottom_nbr = i + 1 - (row_index == I)*I
-      nbrs <- c(left_nbr, right_nbr, top_nbr, bottom_nbr)
-      # nbrs <- c((i - 1), (i + 1), (i - I), (i + I))
-      return(nbrs)
-    }
     neighbours = get_neighbours(i, I, J)
     already_quarantined = which(df$infections$quarantined == "Yes")
     exceptions = c(i, already_quarantined)
@@ -163,7 +167,6 @@ server <- function(input, output) {
 
     # Quarantine those exposed
     i = which(df$infections$shown == "I")
-    # isolating = c(i, (i - 1), (i + 1), (i - I), (i + I))
     isolating = c(i, get_neighbours(i, I, J))
     isolating = isolating[which(isolating > 0 & isolating <= I*J)]
     df$infections$quarantined[isolating] = "Yes"
