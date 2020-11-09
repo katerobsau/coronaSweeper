@@ -1,9 +1,6 @@
-warning("Should have used exponential not Poisson variables!")
-
 library(shiny)
 library(ggplot2)
 library(shinyalert)
-library(patchwork)
 
 # Initialise parameters
 start_num_infections = 4
@@ -24,11 +21,16 @@ default_index = 2
 default_level = game_levels[default_index]
 default_prob = prob_infections[default_index]
 
+# Load functions
+source("initialisePersonStatuses.r")
+source("produceGameBoard.r")
+source("getNeighbours.r")
+
 # UI
 ui <- basicPage(
   useShinyalert(),
   verbatimTextOutput("summaryText"),
-  plotOutput("plot1", click = "plot_click"),
+  plotOutput("plotBoard", click = "plot_click"),
   selectInput("level", "Difficulty:",
               choices = game_levels, selected = default_level),
   verbatimTextOutput("rules")
@@ -37,49 +39,9 @@ ui <- basicPage(
 # Server
 server <- function(input, output) {
   
-  # Initialise grid and displayed infection status
-  init_data <- expand.grid(X = 1:I, Y = 1:J)
-  init_data$shown <- rep("S", I*J)
-  init_data$shown <- factor(init_data$shown, levels = infection_levels)
-  
-  # Initialise quarantine state
-  init_data$quarantined <- rep("No", I*J)
-  init_data$quarantined <- factor(init_data$quarantined, levels = quarantine_levels)
-  
-  # Initialise test state
-  init_data$tested <- rep("unknown", I*J)
-  init_data$tested <- factor(init_data$tested, levels = test_levels)
-  
-  # Randomly initialise the hidden infections
-  init_data$hidden <- rep("S", I*J)
-  initial_infections <- sample(1:(I*J), start_num_infections)
-  init_data$hidden[initial_infections] <- "I"
-  init_data$hidden <- factor(init_data$hidden, levels = infection_levels)
-  
-  # Initialise the infection time
-  init_data$infection_period <- rep(NA, I*J)
-  init_data$infection_period[initial_infections] <- 0
-
-  # Randomly initialise the time until symptoms show
-  init_data$symptom_time <- rpois(I*J, lambda = symptom_lambda)
-
-  # Randomly initialise the time until recovery
-  init_data$recovery_time <- init_data$symptom_time + rpois(I*J, lambda = recovery_lambda)
-
-  # A function to get the neighbours for infections and quaranting
-  get_neighbours <- function(i, I, J){
-    # indexing is by column first then rows 
-    row_index = i%%I + I*(i%%I == 0); 
-    col_index = ceiling(i/I)
-    left_nbr   = i - I + (col_index == 1)*(I*J)
-    right_nbr  = i + I - (col_index == J)*(I*J)
-    top_nbr    = i - 1 + (row_index == 1)*I
-    bottom_nbr = i + 1 - (row_index == I)*I
-    # later part of each nbr equation addresses boundary cases
-    # the board wraps like on a taurus
-    nbrs <- c(left_nbr, right_nbr, top_nbr, bottom_nbr)
-    return(nbrs)
-  }
+  # Set up game board
+  init_data = initialise_person_statuses(I, J, start_num_infections,
+                                   symptom_lambda, recovery_lambda)
   
   # Set probability of infection
   setup <- reactiveValues(prob = default_prob)
@@ -191,40 +153,15 @@ server <- function(input, output) {
           " Hidden:", game_summary$num_I_hidden - game_summary$num_I_shown,
           " Recovered:", game_summary$num_R)
   })
+  
+  # Plot of the game board
+  output$plotBoard <- renderPlot({
 
-  output$plot1 <- renderPlot({
-
-    pnt_size = 3.5
-    ggplot(df$infections) +
-      geom_point(aes(x = X, y = Y, col = quarantined),
-                 shape = 15, size = pnt_size + 2, alpha = 0.8) +
-      scale_color_manual("EXPOSURE STATUS",
-                         labels = quarantine_labels,
-                         values = c("No" = "lightgray", "Yes" = "coral"),
-                         drop = FALSE) +
-      geom_point(aes(X, Y, fill = shown),
-                 shape = 21, size = pnt_size) +
-      scale_fill_manual("INFECTION STATUS",
-                        labels = infection_labels,
-                        values = c("S" = "gray", "I" = "red", "R" = "blue"),
-                        drop = FALSE) +
-      geom_point(aes(X, Y, shape = tested), size = pnt_size, stroke = 1) +
-      scale_shape_manual("TEST STATUS",
-                         labels = test_labels,
-                         values = c("unknown" = 1, "tested" = 13),
-                         drop = FALSE) +
-      coord_fixed() +
-      theme_minimal() +
-      theme(axis.text = element_blank(),
-            axis.title = element_blank(),
-            legend.position = "bottom",
-            legend.box = "vertical",
-            legend.title = element_blank(), #element_text(size = 14),
-            legend.text = element_text(size = 14),
-            title = element_text(size = 16, hjust = 0.5)) +
-      guides(fill = guide_legend(order=1),
-              col = guide_legend(order=2),
-              shape = guide_legend(order=3))
+    produce_board_plot(df$infections,
+                       quarantine_labels, quarantine_levels, 
+                       infection_labels, infection_levels,
+                       test_labels, test_levels)
+    
   })
 
   output$rules <- renderText({
