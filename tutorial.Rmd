@@ -599,6 +599,8 @@ produce_board_plot <- function(plot_df,
 
 ## Shiny
 
+The shiny basics needed to create the interactivity of the game are outlined here. This shiny information is not covered in a comprehensive way. For more shiny details these [tutorials](  https://shiny.rstudio.com/tutorial/written-tutorial/lesson1/) are highly recommended.
+
 ### App File
 
 Create a new function called `app.R`. This will be the function in which we write the code that builds our shiny app.
@@ -638,13 +640,14 @@ Load the functions needed to set up the game and update the virus dynamics. For 
 source("initialisePersonStatuses.r")
 source("produceGameBoard.r")
 source("getNeighbours.r")
+source("updatePersonStatuses.r")
 ```
 
 ### Basic Shiny Set Up 
 
-A shiny app needs two core functions to work, a User Interface (UI) and a Server. In the user interface you specify the app layout, ie a where the plot should be, and in the server you specify what the plot should look like. An example set up for a plot in Shiny is below. There is currently no interactivity specified yet.
+A shiny app needs two core functions to work, a User Interface (UI) and a Server. In the user interface you specify the app layout, ie a where the plot should be, and in the server you specify what the plot should look like. An example Shiny set up for a plot is below. There is no interactivity specified yet.
 
-```{r}
+```{r shiny}
 ui <- basicPage(
   plotOutput("plotBoard", click = NULL)
 )
@@ -652,13 +655,12 @@ ui <- basicPage(
 server <- function(input, output){
 
   # Initialise data frame for people
-  init_data = initialise_person_statuses(I, J, start_num_infections,
-                                   symptom_lambda, recovery_lambda)
+  person_data = initialise_person_statuses(I, J,  start_num_infections, symptom_lambda, recovery_lambda)
   
   # Plot of the game board
   output$plotBoard <- renderPlot({
     
-     produce_board_plot(init_data,
+     produce_board_plot(person_data,
                        quarantine_labels, quarantine_levels,
                        infection_labels, infection_levels,
                        test_labels, test_levels)
@@ -670,147 +672,153 @@ server <- function(input, output){
 shinyApp(ui, server)
 ```
 
-### Reactive Variables
+### Mouse Click & Reactivity
 
+The goal of the following code snippets is to show how to use the mouse click to test if a person is infected, update the infections and update the plot. This requires three basic edits to the above code.
 
+#### (i) Mouse click variable 
 
-### Catching the virus (REWRITE THIS BIT)
+To get coordinates from a plot in shiny we can simply change the `plotOutput()` function in the user interface. All is needed here is to change the input `click = NULL` to `click = "plot_click"`.
 
-A susceptible person can catch the virus from an infected person. 
-<!-- New infections can only happen between people who are not quarantined.  -->
-Below we have set the probability of infection to 1/4. So we expect on average one of the four neighbours will be infected. This is of course random, so in practice none of the neighbours could get infected or all of them could. This is part of what makes the game interesting!
+```{r eval = F}
+ui <- basicPage(
+  plotOutput("plotExample", click = "plot_click")
+  )
+```
+Now a variable called `input$plot_click` is created that contains the click coordinates. 
+
+#### (ii) Reactive variables
+
+In the shiny `server()` for variables to change when something happens, like a mouse is click, these variables need to be defined as `reactiveValues()`. 
+
+In this game, when the mouse is clicked two variables need to update, the test coordinate and the data frame storing the infection states. We have redefined these variables below.
 
 ```{r eval = FALSE}
- # Update with new infections
+server <- function(input, output){ 
   
-  # Get locations of infected people who can infect others
-    possible_virus_transmitters = which(init_data$hidden == "I" & init_data$quarantined == "No") 
-
-  # Find the possible contacts who might be newly infected
-    already_quarantined = which(init_data$quarantined == "Yes")
-    exceptions = c(possible_virus_transmitters, already_quarantined)
-    contacts = setdiff(neighbours, exceptions)
-    
-  # Get new infections  
-    setup = data.frame(prob = 1/4)
-    new_infections = rbinom(length(contacts), 1, setup$prob)
-    infected_contacts = contacts[which(new_infections == 1)]
-    
-  # Update susceptible status in data frame  
-    init_data$hidden[infected_contacts] = "I"
-    init_data$infection_period[infected_contacts]  = -1
+  # Set up game board
+  init_data = initialise_person_statuses(I, J, start_num_infections,
+                                   symptom_lambda, recovery_lambda)
+  
+  # Initialise the reactive variables
+  test_coord <- reactiveValues(x = NULL, y = NULL)
+  person_data <- reactiveValues(infections = init_data)
+  
+  # ...  
+  
+}
 ```
 
-In probability, how an infection occurs between a susceptible and infected person is modelled using a Bernoulli random variable. Bernoulli variables have two possible outcomes, ie. heads or tails, yes or no, true or false. In our case, infected or not infected. If you are performing multiple Bernoulli trials, then we model this using a binonmial variable, ie how many heads in 10 coin flips, or how many infections occur in the four neighbours. This is what the function `rbinom()` does.
+These variables can now be called within the server function using `test_coord$x`, `test_coord$y` and `person_data$infections`. Before any mouse click occurs, the `test_coord` is set as `NULL` and the `person_data` is set as the initial values provided by `initialise_person_statuses()`.
 
-Before we get too much futher into game design, I think its important to review the shiny basics needed to create the interactivity. I will not cover shiny in a comprehensive way, for that I would highly recommend these [tutorials](  https://shiny.rstudio.com/tutorial/written-tutorial/lesson1/). Instead I will present code snippets in their simplest form that will parallel the interactivity required.
+#### (iii) Observe the Mouse Click
 
-### Basic Plot Set Up 
+When the mouse click happens, `input$plot_click` is updated. Shiny can be told this using `observeEvent(input$plot_click, {...})`. Any reactive variables definied within the `observeEvent()` function will then be called to update. 
 
-Shiny needs two core functions to work, a User Interface (UI) and a Server. In the user interface you specify the app layout, ie a plot in the middle, and in the server you specify what the plot should look like. The basic set up for a plot object in Shiny is below. 
+```{r eval = FALSE}
+server <- function(input, output){
+  
+  # Set up game board
+  init_data = initialise_person_statuses(I, J, start_num_infections,
+                                   symptom_lambda, recovery_lambda)
+  
+  # Initialise the reactive variables
+  test_coord <- reactiveValues(x = NULL, y = NULL)
+  person_data <- reactiveValues(infections = init_data)
+  
+  # Observe the mouse click
+  observeEvent(input$plot_click, {
+   
+    # Update test coordinate
+    x = round(as.numeric(input$plot_click$x))
+    x = max(1, x);
+    x = min(x, I);
+    test_coord$x = x
+    
+    y = round(as.numeric(input$plot_click$y))
+    y = max(1, y);
+    y = min(y, J);
+    test_coord$y = y
+    
+    # Simulate new infections and update infection statuses
+    person_data$infections = update_person_statuses(person_data$infections, I, J, default_prob,
+                           test_coord$x, test_coord$y)
+  
+  })
+  
+  # Plot of the game board
+  output$plotBoard <- renderPlot({
+    
+    produce_board_plot(person_data$infections,
+                       quarantine_labels, quarantine_levels, 
+                       infection_labels, infection_levels,
+                       test_labels, test_levels)
+    
+  })
+  
+}
+```
+
+Here the inputs to `update_person_statuses()` and `produce_board_plot()` have changed to their reactive values.
+
+Note that the coordinates from the plot as converted to numeric values and rounded to give the integer coordinates that correspond to a grid. Mouse clicks outside the plot are also rounded to the nearest valid integer values.
+
+### Game Interaction 
+
+Putting this all together.
 
 ```{r}
-library(shiny)
-library(ggplot2)
-
-init_data = data.frame(x = 1:10, y = rep(0,10), shape = rep("A",10)) 
-init_data$shape <- factor(init_data$shape, levels = c("A", "B"))
-
 ui <- basicPage(
-  plotOutput("plotExample", click = NULL)
+  plotOutput("plotExample", click = "plot_click")
 )
 
 server <- function(input, output){
-
-  output$plotExample <- renderPlot({
-    ggplot(data = init_data) +
-      geom_point(aes(x = x, y = y, shape = shape), size = 10) +
-      ggtitle("Some simple plot example") +
-      theme(legend.position = "none")
+  
+  # Set up game board
+  init_data = initialise_person_statuses(I, J, start_num_infections,
+                                   symptom_lambda, recovery_lambda)
+  
+  # Initialise the reactive variables
+  test_coord <- reactiveValues(x = NULL, y = NULL)
+  person_data <- reactiveValues(infections = init_data)
+  
+  # Observe the mouse click
+  observeEvent(input$plot_click, {
+   
+    # Update test coordinate
+    x = round(as.numeric(input$plot_click$x))
+    x = max(1, x);
+    x = min(x, I);
+    test_coord$x = x
+    
+    y = round(as.numeric(input$plot_click$y))
+    y = max(1, y);
+    y = min(y, J);
+    test_coord$y = y
+    
+    # Simulate new infections and update infection statuses
+    person_data$infections = update_person_statuses(person_data$infections, I, J, default_prob,
+                           test_coord$x, test_coord$y)
+  
   })
-
+  
+  # Plot of the game board
+  output$plotBoard <- renderPlot({
+    
+    produce_board_plot(person_data$infections,
+                       quarantine_labels, quarantine_levels, 
+                       infection_labels, infection_levels,
+                       test_labels, test_levels)
+    
+  })
+  
 }
 
 shinyApp(ui, server)
 ```
 
-There is currently no interactivity specified yet.
 
-### Mouse Click
-
-Later, we will use the mouse click to test if a person is infected. We will do this by collecting that person's coordinates from a mouse click and passing those coordintes to other variables. 
-
-The goal of the following snippets is to show how to use the information from a mouse click to update plot aesthetics. This requires three basic edits to the above code.
-
-#### (i) Specify the mouse click variable 
-
-To get coordinates from a plot in shiny we can simply change the inputs to the `plotOutput()` function in the user interface. 
-
-```{r eval = FALSE}
-ui <- basicPage(plotOutput("plotExample", click = "plot_click"))
-```
-Now a variable called `input$plot_click` that contains coordinates can be called within the server function.
-
-#### (ii) Create a new reactive variable
-
-To update a variable when something changes, ie. like a mouse is click, we need to use `reactiveValues()`. In our example, this means the data frame that is passed to `renderPlot()` needs to be specified as a reactive variable.
-
-```{r eval = FALSE}
-plot <- reactiveValues(data = init_data)
-```
-
-The data frame passed to the function `renderPlot()` now also needs updated to our new reactive varialbe, `plot$data`.
-
-```{r eval = FALSE}
-output$plotExample <- renderPlot({
-    ggplot(data = plot$data) +
-      # same as before
-  })
-```
-
-#### (iii) Make the new variable react
-
-To cause `plot$data` to *react* whenever the mouse is clicked, we need to specify in our code that the the plot has been clicked using `observeEvent()`. The below snippet will changes shape columns in our data frame.
-
-```{r eval = FALSE}
-observeEvent(input$plot_click,{
-    i = round(as.numeric(input$plot_click$x))
-    plot$data$shape[i] = "B"
-})
-```
-
-#### Result
-
-Putting it all together we get the following update to the shiny app.
-
-```{r}
-library(shiny)
-
-init_data = data.frame(x = 1:10, y = rep(0,10), shape = rep("A",10)) 
-init_data$shape <- factor(init_data$shape, levels = c("A", "B"))
-
-ui <- basicPage(plotOutput("plotExample", click = "plot_click"))
-
-server <- function(input, output){
-
-  plot <- reactiveValues(data = init_data)
-  
-  observeEvent(input$plot_click,{
-    i = round(as.numeric(input$plot_click$x))
-    plot$data$shape[i] = "B"
-  })
-  
-  output$plotExample <- renderPlot({
-    ggplot(data = plot$data) +
-      geom_point(aes(x = x, y = y, shape = shape), size = 10) +
-      ggtitle("Some simple plot example") +
-      theme(legend.position = "none")
-  })
-
-}
-
-shinyApp(ui, server)
-```
+## Winning the Game
 
 ### Text
 
@@ -825,6 +833,8 @@ asdf
 
 #### Game Stats
 asdf
+
+## Levels 
 
 ### Difficulty 
 asdf
