@@ -25,6 +25,7 @@ default_prob = prob_infections[default_index]
 source("initialisePersonStatuses.r")
 source("produceGameBoard.r")
 source("getNeighbours.r")
+source("updatePersonStatuses.r")
 
 # UI
 ui <- basicPage(
@@ -92,47 +93,9 @@ server <- function(input, output) {
     # Increase counter on infection period
     counter$countervalue <- counter$countervalue + 1
     
-    # Get possible exposures
-    i = which(df$infections$hidden == "I" &
-                df$infections$quarantined == "No")
-    neighbours = get_neighbours(i, I, J)
-    already_quarantined = which(df$infections$quarantined == "Yes")
-    exceptions = c(i, already_quarantined)
-    contacts = setdiff(neighbours, exceptions)
+    df$infections = update_person_statuses(df$infections, I, J, setup$prob,
+                           x_coord$ref, y_coord$ref)
     
-    # Update with new infections
-    new_infections = rbinom(length(contacts), 1, setup$prob)
-    infected_contacts = contacts[which(new_infections == 1)]
-    df$infections$hidden[infected_contacts] = "I"
-    df$infections$infection_period[infected_contacts]  = -1
-    
-    # Increase counter on infection period
-    infectious_cases = (df$infections$hidden == "I")
-    df$infections$infection_period[infectious_cases] =
-      df$infections$infection_period[infectious_cases] + 1
-
-    # Reveal those with symptoms
-    known_cases = (df$infections$infection_period > df$infections$symptom_time)
-    df$infections$shown[known_cases] = "I"
-
-    # Reveal those who recovered
-    recovered_cases = (df$infections$infection_period > df$infections$recovery_time)
-    df$infections$hidden[recovered_cases] = "R"
-    df$infections$shown[recovered_cases] = "R"
-    
-    # Reveal status of the person tested
-    vec_ref = (y_coord$ref-1)*J + x_coord$ref
-    df$infections$tested[vec_ref] = "tested"
-    hidden_status = df$infections$hidden[vec_ref]
-    if(hidden_status %in% c("I", "R"))
-      df$infections$shown[vec_ref] = df$infections$hidden[vec_ref]
-
-    # Quarantine those exposed
-    i = which(df$infections$shown == "I")
-    isolating = c(i, get_neighbours(i, I, J))
-    isolating = isolating[which(isolating > 0 & isolating <= I*J)]
-    df$infections$quarantined[isolating] = "Yes"
-
     # Game stats
     game_summary$num_I_shown = sum(df$infections$shown == "I")
     game_summary$num_I_hidden = sum(df$infections$hidden == "I")
