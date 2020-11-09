@@ -51,15 +51,10 @@ server <- function(input, output) {
     setup$prob = prob_infections[i]
   })
 
-  # Possible additions here:
-  # - Variable time in quarantine
-  # - Number of asymptotmatic people
-
   # Set up reactive values
   counter <- reactiveValues(countervalue = 0)
-  x_coord <- reactiveValues(ref = NULL)
-  y_coord <-reactiveValues(ref = NULL)
-  df <- reactiveValues(infections = init_data)
+  test_coord <- reactiveValues(x = NULL, y = NULL)
+  person_data <- reactiveValues(infections = init_data)
   game_summary <- reactiveValues(win = NA,
                                  num_I_hidden = start_num_infections,
                                  num_I_shown = 0,
@@ -68,38 +63,28 @@ server <- function(input, output) {
   # Prompt updates with mouse click
   observeEvent(input$plot_click, {
 
-    # Order:
-    # * Get test coordinate
-    # * Increase counter on infection period
-    # * Get possible exposures
-    # * Update infections
-    # * Reveal those with symptoms
-    # * Reveal those who recovered
-    # * Reveal status of the person tested
-    # * Quarantine those exposed
-    # * Label those exposed
-
     # Get test coordinate
     x = round(as.numeric(input$plot_click$x))
     x = max(1, x);
     x = min(x, I);
-    x_coord$ref = x
+    test_coord$x = x
     
     y = round(as.numeric(input$plot_click$y))
     y = max(1, y);
     y = min(y, J);
-    y_coord$ref = y
+    test_coord$y = y
     
     # Increase counter on infection period
     counter$countervalue <- counter$countervalue + 1
     
-    df$infections = update_person_statuses(df$infections, I, J, setup$prob,
-                           x_coord$ref, y_coord$ref)
+    # Simulate new infections and update statuses
+    person_data$infections = update_person_statuses(person_data$infections, I, J, setup$prob,
+                           test_coord$x, test_coord$y)
     
     # Game stats
-    game_summary$num_I_shown = sum(df$infections$shown == "I")
-    game_summary$num_I_hidden = sum(df$infections$hidden == "I")
-    game_summary$num_R = sum(df$infections$shown == "R")
+    game_summary$num_I_shown = sum(person_data$infections$shown == "I")
+    game_summary$num_I_hidden = sum(person_data$infections$hidden == "I")
+    game_summary$num_R = sum(person_data$infections$shown == "R")
     game_win = (game_summary$num_I_shown == game_summary$num_I_hidden)
     game_loss = ((game_summary$num_I_hidden + game_summary$num_R) > I*J*perc)
 
@@ -120,7 +105,7 @@ server <- function(input, output) {
   # Plot of the game board
   output$plotBoard <- renderPlot({
 
-    produce_board_plot(df$infections,
+    produce_board_plot(person_data$infections,
                        quarantine_labels, quarantine_levels, 
                        infection_labels, infection_levels,
                        test_labels, test_levels)
@@ -145,24 +130,17 @@ server <- function(input, output) {
       "\n - However, that doesn't mean they haven't already infected someone!",
       "\n",
       "\n Beware:",
-      "\n - People who have been tested can still catch the virus!",
+      "\n - People who have been tested can still catch the virus in the future!",
       "\n - Infected people will recover on average after 14 days",
-      "\n - And once infected people have immunity")
+      "\n - And once recovered those people have immunity")
   })
 
 }
 
 shinyApp(ui, server)
 
-# Issues:
-# Fix the wrapping
-# Update the probability of infection to better odds of winning / losing
-# hard variables in rules 5 and 14
-# Add a time in quarantine
-# Easy, medium, hard probabilities
-# Change board for social distancing
-# Mobile capability
-# Exposed factor level
-# Write vignette about game play
-# shiny tutorials
+# Possible additions here:
+# - Variable time in quarantine
+# - Number of asymptotmatic people
+
 
