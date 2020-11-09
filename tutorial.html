@@ -271,7 +271,7 @@ No longer has the virus
 </div>
 <div id="symptoms-and-recovery" class="section level3">
 <h3>Symptoms and Recovery</h3>
-<p>In addition to testing, a person is revealed as infected and quarantined if they start showing symptoms. On average the WHO says symptoms will show after 6 days. <a href="https://www.who.int/emergencies/diseases/novel-coronavirus-2019/question-and-answers-hub/q-a-detail/q-a-coronaviruses" class="uri">https://www.who.int/emergencies/diseases/novel-coronavirus-2019/question-and-answers-hub/q-a-detail/q-a-coronaviruses</a> In the game, a person will therefore show symptoms after a random number of days, with the average time until symptoms being 6 days. Once symptoms are revealed, that person and their four neighbours are quarantined. <!-- For the game to mirror the virus characteristics, there should be a period of time before an infected person will show symptoms.  --></p>
+<p>In addition to testing, a person is revealed as infected and quarantined if they start showing symptoms. On average the WHO says symptoms will show after 5-6 days. <a href="https://www.who.int/emergencies/diseases/novel-coronavirus-2019/question-and-answers-hub/q-a-detail/q-a-coronaviruses" class="uri">https://www.who.int/emergencies/diseases/novel-coronavirus-2019/question-and-answers-hub/q-a-detail/q-a-coronaviruses</a> In the game, a person will therefore show symptoms after a random number of days, with the average time until symptoms being 5 days. Once symptoms are revealed, that person and their four neighbours are quarantined. <!-- For the game to mirror the virus characteristics, there should be a period of time before an infected person will show symptoms.  --></p>
 <p>The WHO also says people with mild cases are expected to recover within two weeks <a href="https://www.who.int/dg/speeches/detail/who-director-general-s-opening-remarks-at-the-media-briefing-on-covid-19---24-february-2020" class="uri">https://www.who.int/dg/speeches/detail/who-director-general-s-opening-remarks-at-the-media-briefing-on-covid-19---24-february-2020</a> Similarly, the number of days until a person recovers is randomly simulated, with an average recovery period of 14 days.</p>
 </div>
 </div>
@@ -318,7 +318,7 @@ init_data$tested &lt;- rep(&quot;unknown&quot;, I*J)</code></pre>
 </div>
 <div id="infection-period" class="section level3">
 <h3>Infection Period</h3>
-<p>We also store a variable called infection time. This will be used to keep track of when a person becomes infected, when their symptoms will be revealed and when they will recover. The infection time is not shown the game player and is for internal use only. At the beginning of the game, before any days have passed, the infection period is set to zero.</p>
+<p>We also store a variable called infection time. This will be used to keep track of when a person becomes infected, when their symptoms will be revealed and when they will recover. The infection time is not shown the game player and is for internal use only. At the beginning of the game, the infection period is set to NA for all people, expect for the four people randomly infected and their infection time is set to zero.</p>
 <pre class="r"><code># Infection time
 init_data$infection_period &lt;- rep(NA, I*J)
 init_data$infection_period[initial_infections] &lt;- 0</code></pre>
@@ -368,18 +368,14 @@ initialise_person_statuses &lt;- function(I, J, start_num_infections,
   
 }</code></pre>
 </div>
-</div>
-<div id="virus-dynamics" class="section level2">
-<h2>Virus Dynamics</h2>
 <div id="neighbours" class="section level3">
 <h3>Neighbours</h3>
-<p>For both simulating infections and quarantine it is useful to have a function to get the four closest neighbours. A couple of important points are:</p>
+<p>We also need another function get the four closest neighbours. This will be needed for both simulating infections and quarantining. A couple of important design points about finding the neighbours are:</p>
 <ul>
 <li>The board positions are stored as vector</li>
 <li>The grid cells are vectorised by column first then rows</li>
-<li>The board wraps like a taurus, so the top row neighbours the bottom row, and the far left row neighbours the far right row.</li>
+<li>The board wraps like a taurus, so the top row neighbours the bottom row, and the far left row neighbours the far right row. The <code>get_neighbours()</code> function takes a location with the vector that indexes the grid/game board, and returns the vectorised positions of its neighbours. Note within this function, the later part of each <code>*_nbr</code> equation addresses the grid wrapping and deals with the boundary cases.</li>
 </ul>
-<p>The <code>get_neighbours()</code> function takes a location with the vector that indexes the grid/game board, and returns the vectorised positions of its neighbours. Note within this function, the later part of each <code>*_nbr</code> equation addresses the grid wrapping and deals with the boundary cases.</p>
 <pre class="r"><code>get_neighbours &lt;- function(i, I, J){
   row_index = i%%I + I*(i%%I == 0); 
   col_index = ceiling(i/I)
@@ -390,10 +386,138 @@ initialise_person_statuses &lt;- function(I, J, start_num_infections,
   nbrs &lt;- c(left_nbr, right_nbr, top_nbr, bottom_nbr)
   return(nbrs)
 }</code></pre>
+<p>All the tools needed to introduce the virus dynamics have now been introduced.</p>
 </div>
-<div id="next-steps" class="section level3">
-<h3>Next Steps</h3>
-<p>The next step is to set up the game board. After this, how the mouse click influences the game dynamics can be explained.</p>
+</div>
+<div id="virus-dynamics" class="section level2">
+<h2>Virus Dynamics</h2>
+<div id="each-new-day" class="section level3">
+<h3>Each New Day</h3>
+<p>With each new day the following must happen:</p>
+<ul>
+<li>Increase counter on infection period</li>
+<li>Identify exposures</li>
+<li>Update with new infections</li>
+<li>Reveal those with symptoms</li>
+<li>Reveal those who recovered</li>
+<li>Reveal status of the person tested</li>
+<li>Quarantine those exposed</li>
+</ul>
+<p>We will therefore be updating the data frame containing all the information about the people.</p>
+<pre class="r"><code>person_data &lt;- initialise_person_statuses(I = 20, J = 20, start_num_infections = 4, symptom_lambda = 5, recovery_lambda = 14)</code></pre>
+</div>
+<div id="update-infection-period" class="section level3">
+<h3>Update infection period</h3>
+<p>The time a person has been infected needs to increase by 1.</p>
+<pre class="r"><code> # Increase counter on infection period
+  infectious_cases = (person_data$hidden == &quot;I&quot;)
+  person_data$infection_period[infectious_cases] =
+    person_data$infection_period[infectious_cases] + 1</code></pre>
+</div>
+<div id="identify-exposures" class="section level3">
+<h3>Identify exposures</h3>
+<p>We need to identify the hidden infected people who can infect others and subsequently identify anyone who has been exposed to the virus. We are not interested in neighbours already in quarantine, as we are assuming under strict quarantine conditions they can not catch the virus.</p>
+<pre class="r"><code> # Get neighbours of infected people
+  i = which(person_data$hidden == &quot;I&quot; &amp; 
+            person_data$quarantined == &quot;No&quot;)
+  neighbours = get_neighbours(i, I, J)
+  already_quarantined = which(person_data$quarantined == &quot;Yes&quot;)
+  exceptions = c(i, already_quarantined)
+  contacts = setdiff(neighbours, exceptions)</code></pre>
+</div>
+<div id="update-with-new-infections" class="section level3">
+<h3>Update with new infections</h3>
+<p>Once the susceptible people who have been exposed to an infected person have been identified, the new infections can randomly simulated. How an infection occurs between a susceptible and infected person is modelled using a Bernoulli random variable. Bernoulli variables have two possible outcomes, such as heads or tails, yes or no, or, true or false. In our case, these two states are infected or not infected. If you are performing multiple Bernoulli trials, then this is equivalent to a binonmial variable, for example, how many heads in 10 coin flips, or how many infections occur amongst the exposed contacts. To simulate the infections of the amongst those exposed we therefore use the function <code>rbinom()</code>. If a person is newly infected, their <code>hidden</code> status needs to be updated and the <code>infection_period</code> needs to be set to 0.</p>
+<pre class="r"><code>  # Update with new infections
+  infection_prob = 1/5
+  new_infections = rbinom(length(contacts), 1, infection_prob)
+  infected_contacts = contacts[which(new_infections == 1)]
+  person_data$hidden[infected_contacts] = &quot;I&quot;
+  person_data$infection_period[infected_contacts] = 0</code></pre>
+</div>
+<div id="reveal-those-with-symptoms" class="section level3">
+<h3>Reveal those with symptoms</h3>
+<p>If a person has developed symptoms, they are to be revealed to the player and their <code>shown</code> infection status needs to be updated.</p>
+<pre class="r"><code>  # Reveal those with symptoms
+  known_cases = (person_data$infection_period &gt; person_data$symptom_time)
+  person_data$shown[known_cases] = &quot;I&quot;</code></pre>
+</div>
+<div id="reveal-those-who-recovered" class="section level3">
+<h3>Reveal those who recovered</h3>
+<p>Similarly, if a person has recovered then their <code>shown</code> infection status also needs to be updated.</p>
+<pre class="r"><code># Reveal those who recovered
+  recovered_cases = (person_data$infection_period &gt; person_data$recovery_time)
+  person_data$hidden[recovered_cases] = &quot;R&quot;
+  person_data$shown[recovered_cases] = &quot;R&quot;</code></pre>
+</div>
+<div id="reveal-status-of-the-person-tested" class="section level3">
+<h3>Reveal status of the person tested</h3>
+<p>When a person is tested their test status needs to be updated and their hidden status needs to be revealed. In the game a mouse click will be used to provide a the coordinates of the person tested. Here we have used example coordinates of (1,1) just to show how this code chunk works.</p>
+<pre class="r"><code># Example of a test coordinate (1,1)
+test_x = 1; test_y = 1;
+
+# Reveal status of the person tested
+  vec_ref = (test_y-1)*J + test_x
+  person_data$tested[vec_ref] = &quot;tested&quot;
+  person_data$shown[vec_ref] = person_data$hidden[vec_ref]</code></pre>
+</div>
+<div id="quarantine-those-exposed" class="section level3">
+<h3>Quarantine those exposed</h3>
+<p>If the person tested was infected or if new people have shown symptoms, then these people need to into quarantine along with their neighbours.</p>
+<pre class="r"><code># Quarantine those exposed
+  i = which(person_data$shown == &quot;I&quot;)
+  isolating = c(i, get_neighbours(i, I, J))
+  person_data$quarantined[isolating] = &quot;Yes&quot;</code></pre>
+</div>
+<div id="infection-update" class="section level3">
+<h3>Infection Update</h3>
+<p>We can wrap these steps that happen each new day in a function called <code>update_person_statuses()</code>.</p>
+<pre class="r"><code>update_person_statuses &lt;- function(person_data, I, J, 
+                                   infection_prob,
+                                   test_x, test_y){
+  
+  # Increase counter on infection period
+  infectious_cases = (person_data$hidden == &quot;I&quot;)
+  person_data$infection_period[infectious_cases] =
+    person_data$infection_period[infectious_cases] + 1
+  
+  # Get neighbours of infected people
+  i = which(person_data$hidden == &quot;I&quot; &amp; 
+            person_data$quarantined == &quot;No&quot;)
+  neighbours = get_neighbours(i, I, J)
+  already_quarantined = which(person_data$quarantined == &quot;Yes&quot;)
+  exceptions = c(i, already_quarantined)
+  contacts = setdiff(neighbours, exceptions)
+
+  # Update with new infections
+  new_infections = rbinom(length(contacts), 1, infection_prob)
+  infected_contacts = contacts[which(new_infections == 1)]
+  person_data$hidden[infected_contacts] = &quot;I&quot;
+  person_data$infection_period[infected_contacts] = 0
+
+  # Reveal those with symptoms
+  known_cases = (person_data$infection_period &gt; person_data$symptom_time)
+  person_data$shown[known_cases] = &quot;I&quot;
+
+  # Reveal those who recovered
+  recovered_cases = (person_data$infection_period &gt; person_data$recovery_time)
+  person_data$hidden[recovered_cases] = &quot;R&quot;
+  person_data$shown[recovered_cases] = &quot;R&quot;
+
+  # Reveal status of the person tested
+  vec_ref = (test_y-1)*J + test_x
+  person_data$tested[vec_ref] = &quot;tested&quot;
+  person_data$shown[vec_ref] = person_data$hidden[vec_ref]
+
+  # Quarantine those exposed
+  i = which(person_data$shown == &quot;I&quot;)
+  isolating = c(i, get_neighbours(i, I, J))
+  person_data$quarantined[isolating] = &quot;Yes&quot;
+  
+  return(person_data)
+  
+}</code></pre>
+<p>The next step is to set up the game board. After this, how the mouse click is used for testing and how the game board updates with a mouse click can be explained.</p>
 </div>
 </div>
 <div id="board-design" class="section level2">
@@ -565,11 +689,11 @@ produce_board_plot &lt;- function(plot_df,
 </div>
 <div id="static-game-objects" class="section level3">
 <h3>Static Game Objects</h3>
-<p>To keep our code clean, we can group all our statics objects at the beginning of <code>app.R</code>. These are variables and functions that will not update with the mouse click. This includes the packages</p>
+<p>To keep our code clean, we can group all our statics objects at the beginning of <code>app.R</code>. These are variables and functions that will not update with the mouse click, and the packages needed.</p>
 <pre class="r"><code># Load packages
 library(shiny)
 library(ggplot2)</code></pre>
-<p>The initial game paramters for the virus behaviour, board setup and difficulty levels</p>
+<p>Initialise the game paramters for the virus behaviour, board setup and difficulty levels.</p>
 <pre class="r"><code># Initialise parameters
 start_num_infections = 4
 symptom_lambda = 5
@@ -587,7 +711,7 @@ game_levels = c(&quot;Easy&quot;, &quot;Medium&quot;, &quot;Hard&quot;)
 default_index = 2
 default_level = game_levels[default_index]
 default_prob = prob_infections[default_index]</code></pre>
-<p>We will also load our functions here. For simplicity, I've save each of them in a separate file in the working directory.</p>
+<p>Load the functions needed to set up the game and update the virus dynamics. For simplicity, I've save each of these functions in a separate file in the working directory.</p>
 <pre class="r"><code># Load functions
 source(&quot;initialisePersonStatuses.r&quot;)
 source(&quot;produceGameBoard.r&quot;)
@@ -624,21 +748,6 @@ shinyApp(ui, server)</code></pre>
 </div>
 <div id="reactive-variables" class="section level3">
 <h3>Reactive Variables</h3>
-</div>
-<div id="mouse-click-dynamics" class="section level3">
-<h3>Mouse Click Dynamics</h3>
-<p>With each new mouse click the following must happen:</p>
-<ul>
-<li>Get test coordinate</li>
-<li>Increase counter on infection period</li>
-<li>Get possible exposures</li>
-<li>Update infections</li>
-<li>Reveal those with symptoms</li>
-<li>Reveal those who recovered</li>
-<li>Reveal status of the person tested</li>
-<li>Quarantine those exposed</li>
-<li>Label those exposed</li>
-</ul>
 </div>
 <div id="catching-the-virus-rewrite-this-bit" class="section level3">
 <h3>Catching the virus (REWRITE THIS BIT)</h3>
