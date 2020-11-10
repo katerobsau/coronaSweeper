@@ -647,7 +647,7 @@ source("updatePersonStatuses.r")
 
 A shiny app needs two core functions to work, a User Interface (UI) and a Server. In the user interface you specify the app layout, ie a where the plot should be, and in the server you specify what the plot should look like. An example Shiny set up for a plot is below. There is no interactivity specified yet.
 
-```{r shiny}
+```{r eval = FALSE}
 ui <- basicPage(
   plotOutput("plotBoard", click = NULL)
 )
@@ -671,6 +671,17 @@ server <- function(input, output){
 
 shinyApp(ui, server)
 ```
+
+```{r echo = FALSE}
+ # Internal only
+  person_data = initialise_person_statuses(I, J,  start_num_infections, symptom_lambda, recovery_lambda)
+  
+  produce_board_plot(person_data,
+                       quarantine_labels, quarantine_levels,
+                       infection_labels, infection_levels,
+                       test_labels, test_levels)
+```
+
 
 ### Mouse Click & Reactivity
 
@@ -763,11 +774,131 @@ Here the inputs to `update_person_statuses()` and `produce_board_plot()` have ch
 
 Note that the coordinates from the plot as converted to numeric values and rounded to give the integer coordinates that correspond to a grid. Mouse clicks outside the plot are also rounded to the nearest valid integer values.
 
-### Game Interaction 
+### Levels 
 
-Putting this all together.
+#### (i) Add difficulty levels
+
+To understand the game dynamics it can be useful to start with a much lower probability of infection. Given this, it would be nice to add different difficulty levels to the game. You may have noticed in the static inputs there is already some code for three different difficulty levels.
 
 ```{r}
+prob_infections = c(0.15, 0.2, 0.25)
+game_levels = c("Easy", "Medium", "Hard")
+default_index = 2
+default_level = game_levels[default_index]
+default_prob = prob_infections[default_index]
+```
+
+To select which level to play, a drop down menu can be added to the user interface using the function `selectInput`. The below code will position the drop down menu underneath the plot.
+
+```{r}
+ui <- basicPage(
+  plotOutput("plotBoard", click = "plot_click"),
+  selectInput("level", "Difficulty:",
+              choices = game_levels, selected = default_level)
+)
+```
+
+#### (ii) Updates for when the level changes
+
+This creates a new variable called `input$level` that corresponds to the selection in drop down menu. When this selection changes the whole board should reset and the probability of infection needs to update. Therefore similarly to the mouse click, within the `server` a reactive variable is needed for the probability of infection.
+
+```{r eval = FALSE}
+server <- function(input, output) {  
+  
+  # ...
+  
+  level <- reactiveValues(prob = default_prob)
+  
+  # ... 
+  
+}
+```
+
+When the level changes this event needs to be observed by Shiny,  then the infection probability can be updated and the person statuses initialised set as new. 
+```{r eval = FALSE}
+server <- function(input, output) {  
+  
+  # ...
+  
+  level <- reactiveValues(prob = default_prob)
+  
+  # ... 
+  
+  observeEvent(input$level,{
+    i = which(input$level == game_levels)
+    level$prob = prob_infections[i]
+    person_data$infections = initialise_person_statuses(I, J, start_num_infections, symptom_lambda, recovery_lambda)
+    })
+  
+  # ... 
+  
+}
+```
+
+One small further edit is needed. The reactive input `level$prob` needs to be passed to the function `update_person_statuses()` so when the level is changed, how the infections are simulated will also change.
+
+```{r eval = FALSE}
+  # Observe the mouse click
+  observeEvent(input$plot_click, {
+
+    # ... 
+    person_data$infections = update_person_statuses( person_data$infections, I, J, level$prob, test_coord$x, test_coord$y)
+
+  # ...
+    
+  }
+```
+
+### Rules 
+
+It addition to different levels it is nice to add some rules to the game. We can do this calling `verbatimTextOutput()` within the user interface. 
+
+```{r eval = FALSE}
+# UI
+ui <- basicPage(
+  plotOutput("plotBoard", click = "plot_click"),
+  selectInput("level", "Difficulty:",
+              choices = game_levels, selected = default_level),
+  verbatimTextOutput("rules")
+)
+```
+
+The corresponding text to print, `output$rules`, needs to be defined in the server using the function `renderText()`.
+
+```{r}
+server <- function(input, output) { 
+  
+  # ... 
+  
+output$rules <- renderText({
+      paste0("Add your text about your rules! \n ",
+             "Didn't write them in full here to keep things short")
+  })
+
+  # ...
+
+}
+```
+
+### Winning  
+
+asdf
+
+#### Pop Up Box 
+
+asdf
+
+#### Game Stats
+asdf
+
+
+
+
+<!-- ### Game Interaction  -->
+
+<!-- Putting this all together. -->
+
+```{r shiny, echo = FALSE}
 ui <- basicPage(
   plotOutput("plotExample", click = "plot_click")
 )
@@ -816,37 +947,6 @@ server <- function(input, output){
 
 shinyApp(ui, server)
 ```
-
-
-## Winning the Game
-
-### Text
-
-#### Rules 
-summary text 
-
-### Winning  
-asdf
-
-#### Pop Up Box 
-asdf
-
-#### Game Stats
-asdf
-
-## Levels 
-
-### Difficulty 
-asdf
-
-#### Slider 
-asdf
-
-#### Reactivity
-asdf
-
-### Hosting Online
-asdf
 
 ## Why? 
 
