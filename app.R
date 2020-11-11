@@ -1,3 +1,4 @@
+# Load packages
 library(shiny)
 library(ggplot2)
 library(shinyalert)
@@ -197,8 +198,7 @@ server <- function(input, output) {
   counter <- reactiveValues(countervalue = 0)
   test_coord <- reactiveValues(x = NULL, y = NULL)
   person_data <- reactiveValues(infections = init_data)
-  game_summary <- reactiveValues(win = NA,
-                                 num_I_hidden = start_num_infections,
+  game_summary <- reactiveValues(num_I_hidden = start_num_infections,
                                  num_I_shown = 0,
                                  num_R = 0)
   
@@ -230,6 +230,7 @@ server <- function(input, output) {
     game_win = (game_summary$num_I_shown == game_summary$num_I_hidden)
     game_loss = ((game_summary$num_I_hidden + game_summary$num_R) > I*J*perc)
 
+    # Game end
     if(game_win)
       shinyalert(title = "You did it! \n All infections are quarantined", type = "success")
     if(game_loss)
@@ -237,6 +238,7 @@ server <- function(input, output) {
 
   })
 
+  # Game summary text
   output$summaryText <- renderText({
     paste("Days:", counter$countervalue,
           " Shown:", game_summary$num_I_shown,
@@ -254,6 +256,7 @@ server <- function(input, output) {
     
   })
 
+  # Game rules
   output$rules <- renderText({
 
     paste0(
