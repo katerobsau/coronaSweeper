@@ -14,57 +14,22 @@ library(kableExtra)
 
 # Game Design {.tabset}
 
-## Why? 
+## Game Rules
 
-### Inspiration 
+### Game Summary
 
-When corona began, uncertainty was high and given my mathematical background I had to resist the strong temptation to become an armchair epidemiologist. I still felt this overwhelming desire to explore the aspects of virus sprerad through data visualisation though, so I channelled my energies into creating this shiny app. 
+The goal of the game is to use testing to discover people within the population who are infected, and to stop the virus spreading.  Hidden infectious people will be revealed to you if (i) you find them via testing, or (ii) they develop symptoms. 
+<!-- A person will be revealed as infected in two cases, if (i) they are tested, or (ii) they develop symptoms.  -->
+You will be able to test if a person has the virus using a mouse click. If they are infected they will go into quarantine along with their four closest neighbours. 
 
-One of the earliest and most influential visualisations of the virus spread was from an [article]('https://www.washingtonpost.com/graphics/2020/world/corona-simulator/') in the Washington Post. I think this visualisation is marvellous and have shared it widely with friends and family. Although, for me something does feel missing in this visualisation, aside from people acting like a pinballs in a pinball machine. It is the capacity to interact, and experiment further with aspects of how virus spread works. A more comprehensive look at some of the variables involved is given in this [youtube video]('https://www.youtube.com/watch?v=gxAaO2rsdIs').
+Each new mouse click also starts a new day. Upon each new day, undiscovered infectious people within the population can infect others. In addition to testing, to help you discover these people, if a person develops symptoms they are automatically quarantined along with their direct neighbours. Once in quarantine a person can't infect anyone else. 
+<!-- People who have been exhibiting symptoms will also eventually transition to the recovered state. Recovered people can not catch the virus again or infect others. -->
 
-Around the same time, I became aware of the twitter trend [5 jobs you had before you became a scientist]('https://www.nj.com/entertainment/2019/04/what-have-you-done-for-money-in-5-jobs-trend-people-are-sharing-their-work-history-on-twitter.html'). (I love this trend took over a year to reach my clearly, very Australian-centric twitter feed). When I was very young, I used to do administrative chores at my mum's physiotherapy for pocket money. I also played a lot of minesweeper - like a lot.
+You win the game by finding and quarantining all infections through the use of testing. You lose the game though if the virus takes off in the population and over half of the people contract the virus.
 
-It was this combination of things that sparked the idea to create [corona sweeper]('https://katerobsau.shinyapps.io/Corona_Sweeper/'). A shiny app where instead of identifying hidden mines, you can use testing to uncover infected individuals in a population. How we choose to test is clearly very important to mitigating virus spread.
+### Virus Behaviour
 
-### A comment on sensitivity 
-
-So I actually wrote this code during my second week of working from home in the Netherlands. I wasn't being productive at work, and working on a creative idea in R is an outlet for me. I have wanted to share it for a while, but I was worried that people may find it distasteful or disrespectful. Covid-19 is impacting lives and livelihoods. 
-
-There are reasons that have since changed my mind about sharing the game:
-
-(i) I have shared it with friends, and friends with family who have had corona. It bought these people joy and that is what matters.
-
-(ii) I recently had a brief period of self-isolation myself, when two friends in my bubble developed Covid-like symptoms. These friends didn't meet the criteria for testing here in the Netherlands, so we still do not know whether why they have had corona or not. Either way, the game is no longer strictly abstract for me now.
-
-(iii) Game play is a really important tool for learning. I have learnt a lot about the interplay of infection spread, quarantine and testing through playing this simple game. The most interesting part is that even though I am the designer, I didn't know what the optimal strategy. I have only learnt that through gameplay and experimenting with the parameters.
-
-<!-- (iv) The most important point. Some people told me I should make it available through the app store and monetarise it. Turns out I'm a classic academic and don't seek reward for knowledge or hard work. However, I met a wonderful woman from India earlier this year. By following her facebook posts I have realised just how closed my world is to many of the problems faced by people in her country. Her city of Bengal has just been hit by a Cyclone. Given the importance of social distancing to preventing virus spread, the cyclone is going to compound the already very severe impacts of covid-19, such as through increased spread in disaster shelters. So I have decided to put this work towards a good cause, and if you enjoy playing this game please donate [here]('https://www.edexlive.com/news/2020/may/22/amphancyclone-heres-how-you-can-donate-to-relief-funds-to-help-cyclone-ravaged-bengal-and-odisha-12179.html). -->
-
-## Game Set Up
-
-Here I give the code needed to create the `ggplot` game board. Hopefully, it looks clean and simple, but it actually took some thinking!
-
-### Board
-
-I decided to use a standard looking minesweeper board. You can achieve this in a range of ways. Here I've used `geom_point()` and a square point type, `shape = 15`. This shape selection gives us the flexibility we need later.
-
-```{r}
-# board parameters
-I = 20; J = 20;
-
-# initialise the board
-init_data <- expand.grid(X = 1:I, Y = 1:J) %>% as.data.frame()
-
-# plot the board
-pnt_size = 3
-ggplot(data = init_data) +
-    geom_point(aes(x = X, y = Y), col = "gray", shape = 15, size = pnt_size + 2) 
-```
-
-### Susceptible States
-
-In the standard mathematical modelling of epidemic spread, a person is generally classfied in one of following states:
-
+For this game, a person is classfied as one of following infectious states:
 ```{r echo = FALSE}
 infection_levels = c("S", "I", "R")
 infection_labels = c("Susceptible", "Infected", "Recovered")
@@ -77,26 +42,417 @@ kable(infection_table) %>%
   kable_styling(bootstrap_options = c("striped", "hover"))
 ```
 
-If a person who is susceptible comes into contact with an infected person they have a chance of catching the virus. If the person catches the virus, their state changes to infected. People who no longer have the the virus are considered recovered. Once a person has recovered will assume they don't return to a susceptible state and can not become infected again. Labelling the state as recovered also avoids including a specific mortality state.
+If a person who is susceptible comes into contact with an infected person they have a chance of catching the virus. If the person catches the virus then their status changes to infected. People who no longer have the the virus are considered recovered. Once a person has recovered they don't return to a susceptible state and can not become infected again. Labelling the state as recovered avoids including a mortality state. 
 
-To store the susceptible state of a person, a new column called `shown` is added to our data frame. To show how the visualisation works, one person in the centre of the board is set as infected.
+### Quarantine 
+
+There is a fourth state a person can be, the exposed state. Exposed people, have come into contact with an infected person, but don't know yet if this exposure has caused them to catch the virus. To prevent the spread of the virus, anyone exposed to the virus is automatically quarantined. 
+
+### Hidden Infections
+
+The game begins with four randomly chosen people who are infected but their infection status is hidden. Until these hidden infectious people are found and quarantined, they will continue to lead to new infections and the virus will spread.
+
+### Catching the Virus
+
+A susceptible person can catch the virus from an infected person who is a neighbour. As the game is played in a grid neighbours are located left, right, top and bottom. 
+
+Infections occur based on a random trial. For example, a susceptible person might catch the virus from their infected neighbour with a 1 in 5 chance (default). To make the game easier or harder this probability of infection can be changed using the levels. Infections also occur independently of each other, so if two or more neighbours are infected, than a susceptible person is much more likely to catch the virus.
+
+<!-- The easy game level decreases the probablity of infection to roughly a 1 in 8, and to the make the game harder the probability of infection is increased to roughly a 1 in 4. -->
+
+Also to keep things interesting the board wraps top to bottom and left to right. A person in the bottom row can infect therefore their equivalent neighbour in the top row and vice versa. Similarly a person in the far left column can infect their equivalent neighbour in the far right column, and vice versa.
+
+
+### Testing
+
+To stop the virus spreading, testing can be used to find the hidden people in the population who are infected. A tested person who is revealed as infected is automatically quarantined along with their neighbours. Careful however, a person who was tested today and doesn't have the virus can still get infected at some time in the future. It therefore may be necessary to test a person more than once.
+
+### Symptoms and Recovery
+
+In addition to testing, a person is revealed as infected and quarantined if they start showing symptoms. On average the WHO says symptoms will show after 5-6 days. 
+https://www.who.int/emergencies/diseases/novel-coronavirus-2019/question-and-answers-hub/q-a-detail/q-a-coronaviruses
+In the game, a person will therefore show symptoms after a random number of days, with the average time until symptoms being 5 days. Once symptoms are revealed, that person and their four neighbours are quarantined.
+<!-- For the game to mirror the virus characteristics, there should be a period of time before an infected person will show symptoms.  -->
+
+The WHO also says people with mild cases are expected to recover within two weeks
+https://www.who.int/dg/speeches/detail/who-director-general-s-opening-remarks-at-the-media-briefing-on-covid-19---24-february-2020
+Similarly, the number of days until a person recovers is randomly simulated, with an average recovery period of 14 days. 
+
+## R Set Up 
+
+This section provides the R code needed to initialise the game variables and parameters. 
+
+### Contact Network
+
+We store all the information about the people in a data frame called `init_data`, including details about a person's infection status, quarantine status and test status. This data frame also gives the location of people within a grid. This grid forms the game board and the contact network.
+```{r}
+# board dimensions (rows by columns)
+I = 20; J = 20;
+
+# initialise the board
+init_data <- expand.grid(X = 1:I, Y = 1:J) %>% as.data.frame()
+```
+
+### Infectious Status
+
+There is a column for a person's known infection status, and to start everyone in labelled as susceptible. 
 
 ```{r}
-# add a new susceptible state called shown to our data frame
 infection_levels = c("S", "I", "R")
 infection_labels = c("Susceptible", "Infected", "Recovered")
 init_data$shown = rep("S", nrow(init_data))
-# example infection
-centre_cell = I*(J/2) + J/2
-init_data$shown[centre_cell] = "I" 
-init_data$shown <- factor(init_data$shown, levels = infection_levels)
 ```
 
-You might notice, there is both a levels and labels vector. The levels are for to keep the internal code concise and clear, and the labels are for what will appear in the plot legend.  
+### Hidden Infectious Status
 
-Each person will be visualised using `geom_point()` and a circle, `shape = 15` and the colour of this circle will show their susceptibility state.
+There is another column that stores the hidden infectious status. In the beginning of the game, four people are randomly set to be infectious. 
+
+```{r eval = FALSE}
+start_num_infections = 4 
+init_data$hidden <- rep("S", I*J) 
+initial_infections <- sample(1:(I*J), start_num_infections)
+init_data$hidden[initial_infections] <- "I"
+```
+
+### Quarantine Status
+
+Everyone begins the game not in quarantine.
+
 ```{r}
-# plot the new board which has susceptible states
+quarantine_levels = c("Yes", "No")
+quarantine_labels = c("Quarantined", "No Restrictions")
+init_data$quarantined <- rep("No", I*J)
+```
+
+### Testing 
+
+Everybody begins the game as untested. 
+
+```{r}
+test_levels = c("tested", "unknown")
+test_labels = c("Tested", "Not Tested")
+init_data$tested <- rep("unknown", I*J)
+```
+
+### Infection Period
+
+We also store a variable called infection time. This will be used to keep track of when a person becomes infected, when their symptoms will be revealed and when they will recover. The infection time is not shown the game player and is for internal use only. At the beginning of the game, the infection period is set to NA for all people, expect for the four people randomly infected and their infection time is set to zero.
+
+```{r eval = FALSE}
+# Infection time
+init_data$infection_period <- rep(NA, I*J)
+init_data$infection_period[initial_infections] <- 0
+```
+
+### Symptoms and recovery
+
+The time until the symptoms arrive and the time until a patient recovery is randomly simulated. For this we use Poisson random variables. These variables may not be used for some people as not everyone will get infected, however it simplifies things to initialise these symtpom and recovery variables for everyone before the game starts.
+
+```{r eval = FALSE}
+symptom_lambda = 5
+init_data$symptom_time <- rpois(I*J, lambda = symptom_lambda)
+
+recovery_lambda = 14
+init_data$recovery_time <- init_data$symptom_time + rpois(I*J, lambda = recovery_lambda)
+```
+
+### Initialise person data frame
+
+We can wrap these steps in a function called `initialise_person_statuses()`. 
+
+```{r}
+# A function to initialise the game board
+initialise_person_statuses <- function(I, J, start_num_infections, 
+                                  symptom_lambda, recovery_lambda){
+  
+  # Initialise grid and displayed infection status
+  init_data <- expand.grid(X = 1:I, Y = 1:J)
+  init_data$shown <- rep("S", I*J)
+  
+  # Initialise quarantine state
+  init_data$quarantined <- rep("No", I*J)
+  
+  # Initialise test state
+  init_data$tested <- rep("unknown", I*J)
+  
+  # Randomly initialise the hidden infections
+  init_data$hidden <- rep("S", I*J)
+  initial_infections <- sample(1:(I*J), start_num_infections)
+  init_data$hidden[initial_infections] <- "I"
+  
+  # Initialise the infection time
+  init_data$infection_period <- rep(NA, I*J)
+  init_data$infection_period[initial_infections] <- 0
+  
+  # Randomly initialise the time until symptoms show
+  init_data$symptom_time <- rpois(I*J, lambda = symptom_lambda)
+  
+  # Randomly initialise the time until recovery
+  init_data$recovery_time <- init_data$symptom_time + rpois(I*J, lambda = recovery_lambda)
+  
+  return(init_data)
+  
+}
+```
+
+### Neighbours
+
+We also need another function get the four closest neighbours. This will be needed for both simulating infections and quarantining. A couple of important design points about finding the neighbours are: 
+
+* The board positions are stored as vector 
+* The grid cells are vectorised by column first then rows
+* The board wraps like a taurus, so the top row neighbours the bottom row, and the far left row neighbours the far right row. 
+The `get_neighbours()` function takes a location with the vector that indexes the grid/game board, and returns the vectorised positions of its neighbours. Note within this function, the later part of each `*_nbr` equation addresses the grid wrapping and deals with the boundary cases.
+```{r}
+get_neighbours <- function(i, I, J){
+  row_index = i%%I + I*(i%%I == 0); 
+  col_index = ceiling(i/I)
+  left_nbr   = i - I + (col_index == 1)*(I*J)
+  right_nbr  = i + I - (col_index == J)*(I*J)
+  top_nbr    = i - 1 + (row_index == 1)*I
+  bottom_nbr = i + 1 - (row_index == I)*I
+  nbrs <- c(left_nbr, right_nbr, top_nbr, bottom_nbr)
+  return(nbrs)
+}
+```
+All the tools needed to introduce the virus dynamics have now been introduced.
+
+## Virus Dynamics
+
+### Each New Day
+
+With each new day the following must happen:
+
+* Increase counter on infection period
+* Identify exposures
+* Update with new infections
+* Reveal those with symptoms
+* Reveal those who recovered
+* Reveal status of the person tested
+* Quarantine those exposed
+
+We will therefore be updating the data frame containing all the information about the people.
+```{r}
+person_data <- initialise_person_statuses(I = 20, J = 20, start_num_infections = 4, symptom_lambda = 5, recovery_lambda = 14)
+```
+
+### Update infection period
+
+The time a person has been infected needs to increase by 1.
+
+```{r}
+ # Increase counter on infection period
+  infectious_cases = (person_data$hidden == "I")
+  person_data$infection_period[infectious_cases] =
+    person_data$infection_period[infectious_cases] + 1
+```
+
+### Identify exposures
+
+We need to identify the hidden infected people who can infect others and subsequently identify anyone who has been exposed to the virus. We are not interested in neighbours already in quarantine, as we are assuming under strict quarantine conditions they can not catch the virus.
+```{r}
+ # Get neighbours of infected people
+  i = which(person_data$hidden == "I" & 
+            person_data$quarantined == "No")
+  neighbours = get_neighbours(i, I, J)
+  already_quarantined = which(person_data$quarantined == "Yes")
+  exceptions = c(i, already_quarantined)
+  contacts = setdiff(neighbours, exceptions)
+```
+
+### Update with new infections
+
+Once the susceptible people who have been exposed to an infected person have been identified, the new infections can randomly simulated. How an infection occurs between a susceptible and infected person is modelled using a Bernoulli random variable. Bernoulli variables have two possible outcomes, such as heads or tails, yes or no, or, true or false. In our case, these two states are infected or not infected. If you are performing multiple Bernoulli trials, then this is equivalent to a binonmial variable, for example, how many heads in 10 coin flips, or how many infections occur amongst the exposed contacts. To simulate the infections of the amongst those exposed we therefore use the function `rbinom()`. If a person is newly infected, their `hidden` status needs to be updated and the `infection_period` needs to be set to 0.
+
+```{r}
+  # Update with new infections
+  infection_prob = 1/5
+  new_infections = rbinom(length(contacts), 1, infection_prob)
+  infected_contacts = contacts[which(new_infections == 1)]
+  person_data$hidden[infected_contacts] = "I"
+  person_data$infection_period[infected_contacts] = 0
+```
+
+### Reveal those with symptoms
+
+If a person has developed symptoms, they are to be revealed to the player and their `shown` infection status needs to be updated.
+```{r}
+  # Reveal those with symptoms
+  known_cases = (person_data$infection_period > person_data$symptom_time)
+  person_data$shown[known_cases] = "I"
+
+```
+
+### Reveal those who recovered
+
+Similarly, if a person has recovered then their `shown` infection status also needs to be updated.
+```{r}
+# Reveal those who recovered
+  recovered_cases = (person_data$infection_period > person_data$recovery_time)
+  person_data$hidden[recovered_cases] = "R"
+  person_data$shown[recovered_cases] = "R"
+```
+
+### Reveal status of the person tested
+
+When a person is tested their test status needs to be updated and their hidden status needs to be revealed. In the game a mouse click will be used to provide a the coordinates of the person tested. Here we have used example coordinates of (1,1) just to show how this code chunk works. 
+
+```{r}
+# Example of a test coordinate (1,1)
+test_x = 1; test_y = 1;
+
+# Reveal status of the person tested
+  vec_ref = (test_y-1)*J + test_x
+  person_data$tested[vec_ref] = "tested"
+  person_data$shown[vec_ref] = person_data$hidden[vec_ref]
+```
+
+### Quarantine those exposed
+
+If the person tested was infected or if new people have shown symptoms, then these people need to into quarantine along with their neighbours.
+```{r}
+# Quarantine those exposed
+  i = which(person_data$shown == "I")
+  isolating = c(i, get_neighbours(i, I, J))
+  person_data$quarantined[isolating] = "Yes"
+```
+
+### Infection Update
+
+We can wrap these steps that happen each new day in a function called `update_person_statuses()`. 
+
+```{r}
+update_person_statuses <- function(person_data, I, J, 
+                                   infection_prob,
+                                   test_x, test_y){
+  
+  # Increase counter on infection period
+  infectious_cases = (person_data$hidden == "I")
+  person_data$infection_period[infectious_cases] =
+    person_data$infection_period[infectious_cases] + 1
+  
+  # Get neighbours of infected people
+  i = which(person_data$hidden == "I" & 
+            person_data$quarantined == "No")
+  neighbours = get_neighbours(i, I, J)
+  already_quarantined = which(person_data$quarantined == "Yes")
+  exceptions = c(i, already_quarantined)
+  contacts = setdiff(neighbours, exceptions)
+
+  # Update with new infections
+  new_infections = rbinom(length(contacts), 1, infection_prob)
+  infected_contacts = contacts[which(new_infections == 1)]
+  person_data$hidden[infected_contacts] = "I"
+  person_data$infection_period[infected_contacts] = 0
+
+  # Reveal those with symptoms
+  known_cases = (person_data$infection_period > person_data$symptom_time)
+  person_data$shown[known_cases] = "I"
+
+  # Reveal those who recovered
+  recovered_cases = (person_data$infection_period > person_data$recovery_time)
+  person_data$hidden[recovered_cases] = "R"
+  person_data$shown[recovered_cases] = "R"
+
+  # Reveal status of the person tested
+  vec_ref = (test_y-1)*J + test_x
+  person_data$tested[vec_ref] = "tested"
+  person_data$shown[vec_ref] = person_data$hidden[vec_ref]
+
+  # Quarantine those exposed
+  i = which(person_data$shown == "I")
+  isolating = c(i, get_neighbours(i, I, J))
+  person_data$quarantined[isolating] = "Yes"
+  
+  return(person_data)
+  
+}
+```
+
+The next step is to set up the game board. After this, how the mouse click is used for testing and how the game board updates with a mouse click can be explained. 
+
+## Board Design
+
+Below is the code needed to create the `ggplot` game board. Hopefully, it looks clean and simple, but it actually took some thinking!
+
+<!-- Code Summary from previous tabset  -->
+```{r echo = FALSE}
+# board parameters
+I = 20; J = 20;
+
+# initialise the board
+init_data <- expand.grid(X = 1:I, Y = 1:J) %>% as.data.frame()
+
+# infectious status
+infection_levels = c("S", "I", "R")
+infection_labels = c("Susceptible", "Infected", "Recovered")
+init_data$shown = rep("S", nrow(init_data))
+
+# hidden infectious status
+start_num_infections = 4 
+init_data$hidden <- rep("S", I*J) 
+initial_infections <- sample(1:(I*J), start_num_infections)
+init_data$hidden[initial_infections] <- "I"
+
+# quarantine status
+quarantine_levels = c("Yes", "No")
+quarantine_labels = c("Quarantined", "No Restrictions")
+init_data$quarantined <- rep("No", I*J)
+
+# testing status
+test_levels = c("tested", "unknown")
+test_labels = c("Tested", "Not Tested")
+init_data$tested <- rep("unknown", I*J)
+
+# infection period
+init_data$infection_period <- rep(NA, I*J)
+init_data$infection_period[initial_infections] <- 0
+
+# symptoms period
+symptom_lambda = 5
+init_data$symptom_time <- rpois(I*J, lambda = symptom_lambda)
+
+# recovery period
+recovery_lambda = 14
+init_data$recovery_time <- init_data$symptom_time + rpois(I*J, lambda = recovery_lambda)
+
+# neighbour function
+
+get_neighbours <- function(i, I, J){
+  row_index = i%%I + I*(i%%I == 0); 
+  col_index = ceiling(i/I)
+  left_nbr   = i - I + (col_index == 1)*(I*J)
+  right_nbr  = i + I - (col_index == J)*(I*J)
+  top_nbr    = i - 1 + (row_index == 1)*I
+  bottom_nbr = i + 1 - (row_index == I)*I
+  nbrs <- c(left_nbr, right_nbr, top_nbr, bottom_nbr)
+  return(nbrs)
+}
+```
+
+### Board
+
+The board is designed to resemble the standard minesweeper board. This can be achieved in a range of ways, but here grid coordinates are plotted used `geom_point()` and a square shape, `shape = 15`. 
+```{r}
+library(ggplot2)
+# plot the board
+pnt_size = 3
+ggplot(data = init_data) +
+    geom_point(aes(x = X, y = Y), col = "gray", shape = 15, size = pnt_size + 2) 
+```
+
+### Infectious Status
+
+Each person will be visualised using `geom_point()` and a circle, `shape = 15` and the colour of this circle will show their susceptibility state. To show how the visualisation works, one person in the centre of the board is set as infected.
+```{r}
+# infected example
+centre_cell = I*(J/2) + J/2
+init_data$shown[centre_cell] = "I"
+
+# for the plot legend
+init_data$shown <- factor(init_data$shown, levels = infection_levels)
+
+# plot the board with susceptible states
 ggplot(data = init_data) +
   geom_point(aes(x = X, y = Y), col = "gray", shape = 15, size = pnt_size + 2) +
   geom_point(aes(X, Y, fill = shown), shape = 21, size = pnt_size) +
@@ -107,44 +463,20 @@ ggplot(data = init_data) +
 
 At the beginning of the game not all susceptible states will be visible. We want to keep the legend constant and to show all possible states at all times. This is why we convert the `shown` state to a factor instead of a string, and use `drop = FALSE` when we create our legend.
 
+You might also notice, there is both a levels and labels vector. The levels are for to keep the internal code concise and clear, and the labels are for what will appear in the plot legend.  
+
 ### Quaratine 
 
-There is a fourth state a person can be, this is the exposed state. Exposed people, have come into contact with an infected person, but don't know yet if they have contracted virus. To prevent the further spread of the virus, people who are known to be exposed go into quarantine. We will assume that a person who is infected can only infect their four closest neighbours. Therefore when an infection is discovered the four neighbours are considerd exposed and automatically quarantined.
-
-Therefore instead of visualising an additional exposed state, we will create an new column for a person's quaratine status.
-
+We will use the undelying grid squares to show if a person is in quarantine or not. These squares are made slightly transparent using `alpha` so the susceptible state is clearly distinguishable from the quarantine state. Again as an example, the infected central cell is quarantined along with its neighbours.
 ```{r}
-# Add a new exposure status to our data frame called quarantine
-quarantine_levels = c("Yes", "No")
-quarantine_labels = c("Quarantined", "No Restrictions")
-init_data$quarantined <- rep("No", I*J)
-init_data$quarantined <- factor(init_data$quarantined, levels = quarantine_levels)
-
-# A function to get the neighbours for infections and quarantine
-  get_neighbours <- function(i, I, J){
-    # Board indexing is a vector 
-    # Grid cells are vectorised by column first then rows
-    row_index = i%%I + I*(i%%I == 0); 
-    col_index = ceiling(i/I)
-    left_nbr   = i - I + (col_index == 1)*(I*J)
-    right_nbr  = i + I - (col_index == J)*(I*J)
-    top_nbr    = i - 1 + (row_index == 1)*I
-    bottom_nbr = i + 1 - (row_index == I)*I
-    # The board wraps like on a taurus
-    # So the later part of each nbr equation addresses boundary cases
-    nbrs <- c(left_nbr, right_nbr, top_nbr, bottom_nbr)
-    return(nbrs)
-  }
-
-# Put nearby infectious person and their neighbours in quarantine
+# quarantine example
 nbrs = get_neighbours(centre_cell, I, J)
 init_data$quarantined[c(centre_cell, nbrs)] = "Yes"
-```
 
-We will use the undelying grid squares to show if a person is in quarantine or not. Here, I have also made the square slightly transparent using `alpha`, so the susceptible state is clearly distinguishable from the quarantine state. 
+# for the plot legend
+init_data$quarantined <- factor(init_data$quarantined, levels = quarantine_levels)
 
-```{r}
-# plot the updated board with both susceptible and quarantine states
+# plot the board with susceptible and quarantine states
 ggplot(data = init_data) +
     geom_point(aes(x = X, y = Y, col = quarantined), 
                shape = 15, size = pnt_size + 2, alpha = 0.8) +
@@ -159,19 +491,15 @@ ggplot(data = init_data) +
 
 ### Testing
 
-We also need to visualise if a person has been tested. For this we create a new column for the test state.
+We also need to visualise if a person has been tested we use `geom_point()` and a circle with a cross, `shape = 13`. If a person hasn't been tested it just appears as the normal black circle outline, `shape = 1`.
 ```{r}
-# add a tested column to our data frame
-test_levels = c("tested", "unknown")
-test_labels = c("Tested", "Not Tested")
-init_data$tested <- rep("unknown", I*J)
-init_data$tested <- factor(init_data$tested, levels =
-                             test_levels)
+# test example
 init_data$tested[centre_cell] = "tested"
-```
-We then use `geom_point()` and a circle with a cross, `shape = 13` to show if a person has been tested. If a person hasn't been tested it just appears as the normal black circle outline, `shape = 1`.
-```{r}
-# plot the updated board with both susceptible, quarantine and test states
+
+# for the plot legend
+init_data$tested <- factor(init_data$tested, levels = test_levels)
+
+# plot the board with susceptible, quarantine and test states
 board <- ggplot(data = init_data) +
     geom_point(aes(x = X, y = Y, col = quarantined), shape = 15, 
                size = pnt_size + 2, alpha = 0.8) +
@@ -191,7 +519,7 @@ board
 
 ### Tweaking the aesthetics 
 
-At this point it is worth noting that I have carefully selected the shape symbols so all three states; exposure (colour), susceptibility (fill) and test (shape), can be visualised simultaneously. Also note that the order in which we include these `geom_point()` calls is important for the layering. 
+At this point it is worth noting that the symbols have been carefully selected so all three states can be visualised simultaneously; exposure (colour), susceptibility (fill) and test (shape). Also note that the order the `geom_point()` calls are included is important for the order in which they are layered.
 
 A few small fixes also make the game much more aesthetically pleasing
 
@@ -201,8 +529,7 @@ A few small fixes also make the game much more aesthetically pleasing
 * `legend.*()` can be used to change the legend position and text
 * `guides()` can be used to order the position of the legend elements
 
-We position the legend at the bottom to improve the display on mobile devices. 
-
+Positioning the legend at the bottom improves the display on mobile devices. 
 ```{r}
 board <- board + 
   coord_fixed() +
@@ -217,32 +544,128 @@ board <- board +
 board
 ```
 
-## Shiny and Interactivity
+### Produce Plot
 
-Before we get too much futher into game design, I think its important to review the shiny basics needed to create the interactivity. I will not cover shiny in a comprehensive way, for that I would highly recommend these [tutorials](  https://shiny.rstudio.com/tutorial/written-tutorial/lesson1/). Instead I will present code snippets in their simplest form that will parallel the interactivity required.
-
-### Basic Plot Set Up 
-
-Shiny needs two core functions to work, a User Interface (UI) and a Server. In the user interface you specify the app layout, ie a plot in the middle, and in the server you specify what the plot should look like. The basic set up for a plot object in Shiny is below. 
+We will wrap all these steps in a function called `produce_game_plot.R`.
 
 ```{r}
+# A function to plot the game board
+produce_board_plot <- function(plot_df, 
+                       quarantine_labels, quarantine_levels, 
+                       infection_labels, infection_levels,
+                       test_labels, test_levels){
+  
+  plot_df$shown <- factor(plot_df$shown, levels = infection_levels)
+  plot_df$hidden <- factor(plot_df$hidden, levels = infection_levels)
+  plot_df$quarantined <- factor(plot_df$quarantined, levels = quarantine_levels)
+  plot_df$tested <- factor(plot_df$tested, levels = test_levels)
+  
+  pnt_size = 3.5
+  board_plot <- ggplot(plot_df) +
+    geom_point(aes(x = X, y = Y, col = quarantined),
+               shape = 15, size = pnt_size + 2, alpha = 0.8) +
+    scale_color_manual("EXPOSURE STATUS",
+                       labels = quarantine_labels,
+                       values = c("No" = "lightgray", "Yes" = "coral"),
+                       drop = FALSE) +
+    geom_point(aes(X, Y, fill = shown),
+               shape = 21, size = pnt_size) +
+    scale_fill_manual("INFECTION STATUS",
+                      labels = infection_labels,
+                      values = c("S" = "gray", "I" = "red", "R" = "blue"),
+                      drop = FALSE) +
+    geom_point(aes(X, Y, shape = tested), size = pnt_size, stroke = 1) +
+    scale_shape_manual("TEST STATUS",
+                       labels = test_labels,
+                       values = c("unknown" = 1, "tested" = 13),
+                       drop = FALSE) +
+    coord_fixed() +
+    theme_minimal() +
+    theme(axis.text = element_blank(),
+          axis.title = element_blank(),
+          legend.position = "bottom",
+          legend.box = "vertical",
+          legend.title = element_blank(),
+          legend.text = element_text(size = 14),
+          title = element_text(size = 16, hjust = 0.5)) +
+    guides(fill = guide_legend(order=1),
+           col = guide_legend(order=2),
+           shape = guide_legend(order=3))
+  
+  return(board_plot)
+  
+}
+```
+
+## Shiny
+
+The shiny basics needed to create the interactivity of the game are outlined here. This shiny information is not covered in a comprehensive way. For more shiny details these [tutorials](  https://shiny.rstudio.com/tutorial/written-tutorial/lesson1/) are highly recommended.
+
+### App File
+
+Create a new function called `app.R`. This will be the function in which we write the code that builds our shiny app.
+
+### Static Game Objects
+
+To keep our code clean, we can group all our statics objects at the beginning of `app.R`. These are variables and functions that will not update with the mouse click, and the packages needed.
+```{r warning= FALSE, message=FALSE}
+# Load packages
 library(shiny)
 library(ggplot2)
+library(shinyalert)
+```
+Initialise the game parameters for the virus behaviour, board setup and difficulty levels.
+```{r}
+# Initialise parameters
+start_num_infections = 4
+symptom_lambda = 5
+recovery_lambda = 14
+I = 20;
+J = 20;
+infection_levels = c("S", "I", "R")
+infection_labels = c("Susceptible", "Infected", "Recovered")
+test_levels = c("tested", "unknown")
+test_labels = c("Tested", "Not Tested")
+quarantine_levels = c("Yes", "No")
+quarantine_labels = c("Quarantined", "No Restrictions")
+prob_infections = c(0.15, 0.2, 0.25)
+game_levels = c("Easy", "Medium", "Hard")
+default_index = 2
+default_level = game_levels[default_index]
+default_prob = prob_infections[default_index]
+```
 
-init_data = data.frame(x = 1:10, y = rep(0,10), shape = rep("A",10)) 
-init_data$shape <- factor(init_data$shape, levels = c("A", "B"))
+Load the functions needed to set up the game and update the virus dynamics. For simplicity, I've save each of these functions in a separate file in the working directory.
+```{r}
+# Load functions
+source("initialisePersonStatuses.r")
+source("produceGameBoard.r")
+source("getNeighbours.r")
+source("updatePersonStatuses.r")
+```
 
+### Basic Shiny Set Up 
+
+A shiny app needs two core functions to work, a User Interface (UI) and a Server. In the user interface you specify the app layout, ie a where the plot should be, and in the server you specify what the plot should look like. An example Shiny set up for a plot is below. There is no interactivity specified yet.
+
+```{r eval = FALSE}
 ui <- basicPage(
-  plotOutput("plotExample", click = NULL)
+  plotOutput("plotBoard", click = NULL)
 )
 
 server <- function(input, output){
 
-  output$plotExample <- renderPlot({
-    ggplot(data = init_data) +
-      geom_point(aes(x = x, y = y, shape = shape), size = 10) +
-      ggtitle("Some simple plot example") +
-      theme(legend.position = "none")
+  # Initialise data frame for people
+  person_data = initialise_person_statuses(I, J,  start_num_infections, symptom_lambda, recovery_lambda)
+  
+  # Plot of the game board
+  output$plotBoard <- renderPlot({
+    
+     produce_board_plot(person_data,
+                       quarantine_labels, quarantine_levels,
+                       infection_labels, infection_levels,
+                       test_labels, test_levels)
+    
   })
 
 }
@@ -250,77 +673,481 @@ server <- function(input, output){
 shinyApp(ui, server)
 ```
 
-There is currently no interactivity specified yet.
-
-### Mouse Click
-
-Later, we will use the mouse click to test if a person is infected. We will do this by collecting that person's coordinates from a mouse click and passing those coordintes to other variables. 
-
-The goal of the following snippets is to show how to use the information from a mouse click to update plot aesthetics. This requires three basic edits to the above code.
-
-#### (i) Specify the mouse click variable 
-
-To get coordinates from a plot in shiny we can simply change the inputs to the `plotOutput()` function in the user interface. 
-
-```{r eval = FALSE}
-ui <- basicPage(plotOutput("plotExample", click = "plot_click"))
-```
-Now a variable called `input$plot_click` that contains coordinates can be called within the server function.
-
-#### (ii) Create a new reactive variable
-
-To update a variable when something changes, ie. like a mouse is click, we need to use `reactiveValues()`. In our example, this means the data frame that is passed to `renderPlot()` needs to be specified as a reactive variable.
-
-```{r eval = FALSE}
-plot <- reactiveValues(data = init_data)
+```{r echo = FALSE}
+ # Internal only
+  person_data = initialise_person_statuses(I, J,  start_num_infections, symptom_lambda, recovery_lambda)
+  
+  produce_board_plot(person_data,
+                       quarantine_labels, quarantine_levels,
+                       infection_labels, infection_levels,
+                       test_labels, test_levels)
 ```
 
-The data frame passed to the function `renderPlot()` now also needs updated to our new reactive varialbe, `plot$data`.
+
+### Mouse Click & Reactivity
+
+The goal of the following code snippets is to show how to use the mouse click to test if a person is infected, update the infections and update the plot. This requires three basic edits to the above code.
+
+#### (i) Mouse click variable 
+
+To get coordinates from a plot in shiny we can simply change the `plotOutput()` function in the user interface. All is needed here is to change the input `click = NULL` to `click = "plot_click"`.
+
+```{r eval = F}
+ui <- basicPage(
+  plotOutput("plotExample", click = "plot_click")
+  )
+```
+Now a variable called `input$plot_click` is created that contains the click coordinates. 
+
+#### (ii) Reactive variables
+
+In the shiny `server()` for variables to change when something happens, like a mouse is click, these variables need to be defined as `reactiveValues()`. 
+
+In this game, when the mouse is clicked two variables need to update, the test coordinate and the data frame storing the infection states. We have redefined these variables below.
 
 ```{r eval = FALSE}
-output$plotExample <- renderPlot({
-    ggplot(data = plot$data) +
-      # same as before
+server <- function(input, output){ 
+  
+  # Set up game board
+  init_data = initialise_person_statuses(I, J, start_num_infections,
+                                   symptom_lambda, recovery_lambda)
+  
+  # Initialise the reactive variables
+  test_coord <- reactiveValues(x = NULL, y = NULL)
+  person_data <- reactiveValues(infections = init_data)
+  
+  # ...  
+  
+}
+```
+
+These variables can now be called within the server function using `test_coord$x`, `test_coord$y` and `person_data$infections`. Before any mouse click occurs, the `test_coord` is set as `NULL` and the `person_data` is set as the initial values provided by `initialise_person_statuses()`.
+
+#### (iii) Observe the Mouse Click
+
+When the mouse click happens, `input$plot_click` is updated. Shiny can be told this using `observeEvent(input$plot_click, {...})`. Any reactive variables definied within the `observeEvent()` function will then be called to update. 
+
+```{r eval = FALSE}
+server <- function(input, output){
+  
+  # Set up game board
+  init_data = initialise_person_statuses(I, J, start_num_infections,
+                                   symptom_lambda, recovery_lambda)
+  
+  # Initialise the reactive variables
+  test_coord <- reactiveValues(x = NULL, y = NULL)
+  person_data <- reactiveValues(infections = init_data)
+  
+  # Observe the mouse click
+  observeEvent(input$plot_click, {
+   
+    # Update test coordinate
+    x = round(as.numeric(input$plot_click$x))
+    x = max(1, x);
+    x = min(x, I);
+    test_coord$x = x
+    
+    y = round(as.numeric(input$plot_click$y))
+    y = max(1, y);
+    y = min(y, J);
+    test_coord$y = y
+    
+    # Simulate new infections and update infection statuses
+    person_data$infections = update_person_statuses(person_data$infections, I, J, default_prob,
+                           test_coord$x, test_coord$y)
+  
   })
+  
+  # Plot of the game board
+  output$plotBoard <- renderPlot({
+    
+    produce_board_plot(person_data$infections,
+                       quarantine_labels, quarantine_levels, 
+                       infection_labels, infection_levels,
+                       test_labels, test_levels)
+    
+  })
+  
+}
 ```
 
-#### (iii) Make the new variable react
+Here the inputs to `update_person_statuses()` and `produce_board_plot()` have changed to their reactive values.
 
-To cause `plot$data` to *react* whenever the mouse is clicked, we need to specify in our code that the the plot has been clicked using `observeEvent()`. The below snippet will changes shape columns in our data frame.
+Note that the coordinates from the plot as converted to numeric values and rounded to give the integer coordinates that correspond to a grid. Mouse clicks outside the plot are also rounded to the nearest valid integer values.
 
-```{r eval = FALSE}
-observeEvent(input$plot_click,{
-    i = round(as.numeric(input$plot_click$x))
-    plot$data$shape[i] = "B"
-})
-```
+### Levels 
 
-#### Result
+#### (i) Add difficulty levels
 
-Putting it all together we get the following update to the shiny app.
+To understand the game dynamics it can be useful to start with a much lower probability of infection. Given this, it would be nice to add different difficulty levels to the game. You may have noticed in the static inputs there is already some code for three different difficulty levels.
 
 ```{r}
-library(shiny)
+prob_infections = c(0.15, 0.2, 0.25)
+game_levels = c("Easy", "Medium", "Hard")
+default_index = 2
+default_level = game_levels[default_index]
+default_prob = prob_infections[default_index]
+```
 
-init_data = data.frame(x = 1:10, y = rep(0,10), shape = rep("A",10)) 
-init_data$shape <- factor(init_data$shape, levels = c("A", "B"))
+To select which level to play, a drop down menu can be added to the user interface using the function `selectInput`. The below code will position the drop down menu underneath the plot.
 
-ui <- basicPage(plotOutput("plotExample", click = "plot_click"))
+```{r}
+ui <- basicPage(
+  plotOutput("plotBoard", click = "plot_click"),
+  selectInput("level", "Difficulty:",
+              choices = game_levels, selected = default_level) #this line here
+)
+```
 
-server <- function(input, output){
+#### (ii) Updates for when the level changes
 
-  plot <- reactiveValues(data = init_data)
+This creates a new variable called `input$level` that corresponds to the selection in drop down menu. When this selection changes the whole board should reset and the probability of infection needs to update. Therefore similarly to the mouse click, within the `server` a reactive variable is needed for the probability of infection.
+
+```{r eval = FALSE}
+server <- function(input, output) {  
   
-  observeEvent(input$plot_click,{
-    i = round(as.numeric(input$plot_click$x))
-    plot$data$shape[i] = "B"
+  # ...
+  
+  level <- reactiveValues(prob = default_prob)
+  
+  # ... 
+  
+}
+```
+
+When the level changes this event needs to be observed by Shiny,  then the infection probability can be updated and the person statuses initialised set as new. 
+```{r eval = FALSE}
+server <- function(input, output) {  
+  
+  # ...
+  
+  level <- reactiveValues(prob = default_prob)
+  
+  # ... 
+  
+  observeEvent(input$level,{
+    i = which(input$level == game_levels)
+    level$prob = prob_infections[i]
+    person_data$infections = initialise_person_statuses(I, J, start_num_infections, symptom_lambda, recovery_lambda)
+    })
+  
+  # ... 
+  
+}
+```
+
+One small further edit is needed. The reactive input `level$prob` needs to be passed to the function `update_person_statuses()` so when the level is changed, how the infections are simulated will also change.
+
+```{r eval = FALSE}
+  # Observe the mouse click
+  observeEvent(input$plot_click, {
+
+    # ... 
+    person_data$infections = update_person_statuses( person_data$infections, I, J, level$prob, test_coord$x, test_coord$y)
+
+  # ...
+    
+  }
+```
+
+### Rules 
+
+It addition to different levels it is nice to add some rules to the game. We can do this calling `verbatimTextOutput()` within the user interface. 
+
+```{r eval = FALSE}
+# UI
+ui <- basicPage(
+  plotOutput("plotBoard", click = "plot_click"),
+  selectInput("level", "Difficulty:",
+              choices = game_levels, selected = default_level),
+  verbatimTextOutput("rules")
+)
+```
+
+The corresponding text to print, `output$rules`, needs to be defined in the server using the function `renderText()`.
+
+```{r}
+server <- function(input, output) { 
+  
+  # ... 
+  
+output$rules <- renderText({
+      paste0("Add your text about your rules! \n ",
+             "Didn't write them in full here to keep things short")
+  })
+
+  # ...
+
+}
+```
+
+### Winning  
+
+To win the game all hidden infections must be identified and revealed. The game is lost if over half of the population from becomes infected, even if some of them recover. To keep track of when the game is won or lost we need to initialise reactive variables that update with each new test/mouse click. 
+
+```{r}
+server <- function(input, output) {  
+  
+  # ...
+  
+    counter <- reactiveValues(countervalue = 0) 
+    game_summary <- reactiveValues(num_I_hidden = start_num_infections,
+                                 num_I_shown = 0,
+                                 num_R = 0)
+  
+  # ... 
+  
+}
+```
+
+Upon each mouse click these variables need to update and we need to evaluate if the game is won or lost.
+
+```{r eval = FALSE}
+  # Observe the mouse click
+  observeEvent(input$plot_click, {
+
+    # ... 
+    
+    # Increase counter on infection period
+    counter$countervalue <- counter$countervalue + 1
+    
+    # ....
+    
+     # Game stats
+    game_summary$num_I_shown = sum(person_data$infections$shown == "I")
+    game_summary$num_I_hidden = sum(person_data$infections$hidden == "I")
+    game_summary$num_R = sum(person_data$infections$shown == "R")
+    game_win = (game_summary$num_I_shown == game_summary$num_I_hidden)
+    game_loss = ((game_summary$num_I_hidden + game_summary$num_R) > I*J*perc)
+    
+    # ...
+    
+  }
+
+```
+
+#### Pop Up Box 
+
+When the game is won or lost a pop up box should appear. For this we need the package `shinyalert`, which was loaded earlier. Within the user interface to generate a pop up box the function `useShinyalert()` needs to be added.
+
+```{r eval = FALSE}
+ui <- basicPage(
+  useShinyalert(), # this line here
+  verbatimTextOutput("summaryText"),
+  plotOutput("plotBoard", click = "plot_click"),
+  selectInput("level", "Difficulty:",
+              choices = game_levels, selected = default_level)
+)
+```
+
+To define the text in the pop up box the function `shinyalert()` needs to be called within the server. Two different pop ups are defined for if the game is won or lost.
+
+```{r eval = FALSE}
+  # Observe the mouse click
+  observeEvent(input$plot_click, {
+
+    # ... 
+    
+     # Game stats
+    game_summary$num_I_shown = sum(person_data$infections$shown == "I")
+    game_summary$num_I_hidden = sum(person_data$infections$hidden == "I")
+    game_summary$num_R = sum(person_data$infections$shown == "R")
+    game_win = (game_summary$num_I_shown == game_summary$num_I_hidden)
+    game_loss = ((game_summary$num_I_hidden + game_summary$num_R) > I*J*perc)
+
+    # Game end
+    if(game_win)
+      shinyalert(title = "You did it! \n All infections are quarantined", type = "success")
+    if(game_loss)
+      shinyalert(title = "Sorry you failed. \n The spread escaped", type = "info")
+
+    # ...
+  
+  }
+```
+
+#### Game Stats
+
+To help people know how many infections are hidden and perhaps change their testing strategy, it would be nice to add the game statistics to the top as a print statement. A call is made in the user interface to `verbatimTextOutput()` to position the summary text above the game board.
+
+```{r}
+ui <- basicPage(
+  useShinyalert(),
+  verbatimTextOutput("summaryText"), # this line here
+  plotOutput("plotBoard", click = "plot_click"),
+  selectInput("level", "Difficulty:",
+              choices = game_levels, selected = default_level),
+  verbatimTextOutput("rules")
+)
+
+```
+
+The variable `output$summaryText` can then be defined using `renderText()` in the server function. We use the reactive variable `counter$countervalue`, as defined in the previous subsection, to keep track of how many days have passed.
+
+```{r eval = FALSE}
+server <- function(input, output) {
+  
+  # ... 
+  
+  output$summaryText <- renderText({
+    paste("Days:", counter$countervalue,
+          " Shown:", game_summary$num_I_shown,
+          " Hidden:", game_summary$num_I_hidden - game_summary$num_I_shown,
+          " Recovered:", game_summary$num_R)
   })
   
-  output$plotExample <- renderPlot({
-    ggplot(data = plot$data) +
-      geom_point(aes(x = x, y = y, shape = shape), size = 10) +
-      ggtitle("Some simple plot example") +
-      theme(legend.position = "none")
+  # ...
+  
+}
+```
+
+All the shiny pieces can now be combined together!
+
+## Final Game
+
+```{r}
+# Load packages
+library(shiny)
+library(ggplot2)
+library(shinyalert)
+
+# Initialise parameters
+start_num_infections = 4
+symptom_lambda = 5
+recovery_lambda = 14
+I = 20;
+J = 20;
+perc = 0.5;
+infection_levels = c("S", "I", "R")
+infection_labels = c("Susceptible", "Infected", "Recovered")
+test_levels = c("tested", "unknown")
+test_labels = c("Tested", "Not Tested")
+quarantine_levels = c("Yes", "No")
+quarantine_labels = c("Quarantined", "No Restrictions")
+prob_infections = c(0.15, 0.2, 0.25)
+game_levels = c("Easy", "Medium", "Hard")
+default_index = 2
+default_level = game_levels[default_index]
+default_prob = prob_infections[default_index]
+
+# Load functions
+# Must be in the same directory!!!
+source("initialisePersonStatuses.r")
+source("produceGameBoard.r")
+source("getNeighbours.r")
+source("updatePersonStatuses.r")
+
+# User interface
+ui <- basicPage(
+  useShinyalert(),
+  verbatimTextOutput("summaryText"),
+  plotOutput("plotBoard", click = "plot_click"),
+  selectInput("level", "Difficulty:",
+              choices = game_levels, selected = default_level),
+  verbatimTextOutput("rules")
+)
+
+# Server
+server <- function(input, output) {
+  
+  # Set up game board
+  init_data = initialise_person_statuses(I, J, start_num_infections,
+                                   symptom_lambda, recovery_lambda)
+  
+  # Set probability of infection
+  setup <- reactiveValues(prob = default_prob)
+  observeEvent(input$level,{
+    i = which(input$level == game_levels)
+    setup$prob = prob_infections[i]
+    person_data$infections = initialise_person_statuses(I, J, start_num_infections,
+                                                        symptom_lambda, recovery_lambda)
+  })
+
+  # Set up reactive values
+  counter <- reactiveValues(countervalue = 0)
+  test_coord <- reactiveValues(x = NULL, y = NULL)
+  person_data <- reactiveValues(infections = init_data)
+  game_summary <- reactiveValues(win = NA,
+                                 num_I_hidden = start_num_infections,
+                                 num_I_shown = 0,
+                                 num_R = 0)
+  
+  # Prompt updates with mouse click
+  observeEvent(input$plot_click, {
+
+    # Get test coordinate
+    x = round(as.numeric(input$plot_click$x))
+    x = max(1, x);
+    x = min(x, I);
+    test_coord$x = x
+    
+    y = round(as.numeric(input$plot_click$y))
+    y = max(1, y);
+    y = min(y, J);
+    test_coord$y = y
+    
+    # Increase counter on infection period
+    counter$countervalue <- counter$countervalue + 1
+    
+    # Simulate new infections and update statuses
+    person_data$infections = update_person_statuses(person_data$infections, I, J, setup$prob,
+                           test_coord$x, test_coord$y)
+    
+    # Game stats
+    game_summary$num_I_shown = sum(person_data$infections$shown == "I")
+    game_summary$num_I_hidden = sum(person_data$infections$hidden == "I")
+    game_summary$num_R = sum(person_data$infections$shown == "R")
+    game_win = (game_summary$num_I_shown == game_summary$num_I_hidden)
+    game_loss = ((game_summary$num_I_hidden + game_summary$num_R) > I*J*perc)
+
+    # Game end
+    if(game_win)
+      shinyalert(title = "You did it! \n All infections are quarantined", type = "success")
+    if(game_loss)
+      shinyalert(title = "Sorry you failed. \n The spread escaped", type = "info")
+
+  })
+
+  # Game summary text
+  output$summaryText <- renderText({
+    paste("Days:", counter$countervalue,
+          " Shown:", game_summary$num_I_shown,
+          " Hidden:", game_summary$num_I_hidden - game_summary$num_I_shown,
+          " Recovered:", game_summary$num_R)
+  })
+  
+  # Plot of the game board
+  output$plotBoard <- renderPlot({
+
+    produce_board_plot(person_data$infections,
+                       quarantine_labels, quarantine_levels, 
+                       infection_labels, infection_levels,
+                       test_labels, test_levels)
+    
+  })
+
+  # Game rules
+  output$rules <- renderText({
+
+    paste0(
+      "Goal: Find all the infected people before more than ", round(I*J*perc) , " get infected!",
+      "\n",
+      "\n Game Setup:",
+      "\n - The game starts with 4 infected people",
+      "\n - By clicking on people you can test if they are infected",
+      "\n - Upon each new mouse click new people can become infected",
+      "\n - People can only be infected by their 4 direct neighbours",
+      "\n",
+      "\n To help you out:",
+      "\n - Infected people show symptoms on average after 5 days",
+      "\n - A person showing symptoms is quarantined, along with thier neighbours.",
+      "\n - Once a person is in quarantine they stop spreading the virus",
+      "\n - However, that doesn't mean they haven't already infected someone!",
+      "\n",
+      "\n Beware:",
+      "\n - People who have been tested can still catch the virus in the future!",
+      "\n - Infected people will recover on average after 14 days",
+      "\n - And once recovered those people have immunity")
   })
 
 }
@@ -328,133 +1155,21 @@ server <- function(input, output){
 shinyApp(ui, server)
 ```
 
-### Text
+## Why? 
 
-#### Rules 
-summary text 
+### Inspiration 
 
-### Winning  
-asdf
+When corona began, uncertainty was high and given my mathematical background I had to resist the strong temptation to become an armchair epidemiologist. I still felt this overwhelming desire to explore the aspects of virus sprerad through data visualisation though, so I channelled my energies into creating this shiny app. 
 
-#### Pop Up Box 
-asdf
+One of the earliest and most influential visualisations of the virus spread was from an [article]('https://www.washingtonpost.com/graphics/2020/world/corona-simulator/') in the Washington Post. I think this visualisation is marvellous and have shared it widely with friends and family. Although, for me something does feel missing in this visualisation, aside from people acting like a pinballs in a pinball machine. It is the capacity to interact, and experiment further with aspects of how virus spread works. A more comprehensive look at some of the variables involved is given in this [youtube video]('https://www.youtube.com/watch?v=gxAaO2rsdIs').
 
-#### Game Stats
-asdf
+Around the same time as I was considering exploring virus dynamics through interactive graphics, I became aware of the twitter trend [5 jobs you had before you became a scientist]('https://www.nj.com/entertainment/2019/04/what-have-you-done-for-money-in-5-jobs-trend-people-are-sharing-their-work-history-on-twitter.html'). (I love that this trend took over a year to reach my clearly, very Australian-centric twitter feed). When I was very young, I used to do administrative chores at my mum's physiotherapy for pocket money. I also used to play a lot of minesweeper - like a lot.
 
-### Difficulty 
-asdf
+It was this combination of things that sparked the idea to create [corona sweeper]('https://katerobsau.shinyapps.io/Corona_Sweeper/'). A shiny app where instead of identifying hidden mines, you can use testing to uncover infected individuals in a population. How we choose to test is clearly very important to mitigating virus spread.
 
-#### Slider 
-asdf
+### A comment
 
-#### Reactivity
-asdf
+So I actually wrote this code during my second week of working from home in the Netherlands. That was back in March, and feels like a lifetime ago! I wasn't being productive at work, and working on a creative idea in R is an outlet for me. I have wanted to share it for a while, but I was worried that people may find it distasteful or disrespectful. I have since shared it with friends who have had corona and friends with family who have had corona. It bought these people joy and that is what matters. I'm also currently doing two weeks of quarantine enforced by the Australian government, so the game concepts are far from abstract.
 
-### Hosting Online
-asdf
+What I have realised from created this game is that play is a really important tool for learning. Despite the games relative simplicity in terms of the real virus dynamic, I have learnt a lot about the interplay of infection spread, quarantine and testing. The most interesting part fo me is that even though I am the game designer, I don't know what the optimal strategy is. I have only learnt this through gameplay and experimenting with the parameters. Have fun!!!
 
-## Virus Behaviour
-
-The logic of this section follows on from game set up. 
-
-### Initial Infections
-
-The game begins with four individuals within the population who are infected. These people are chosen randomly and their infection status is hidden. The person will be revealed as infected in two cases, if (i) they are tested, or (ii) they develop symptoms. The goal of the game is to use testing to discover people within the population who are infected, and to stop the virus spreading.
-
-```{r eval = FALSE}
-# add a hidden state that keeps track of infection status
-start_num_infections = 4 
-init_data$hidden <- rep("S", I*J) 
-initial_infections <- sample(1:(I*J), start_num_infections)
-init_data$hidden[initial_infections] <- "I"
-init_data$hidden <- factor(init_data$hidden, levels = infection_levels)
-```
-For each person we now have an entry in each of the columns: `x`, `y`, `shown`, `quarantined`, `tested` and `hidden`.
-
-### Catching the virus 
-
-A susceptible person can catch the virus from an infected person. New infections can only happen between people who are not quarantined. Below we have set the probability of infection to 1/4. So we expect on average one of the four neighbours will be infected. This is of course random, so in practice none of the neighbours could get infected or all of them could. This is part of what makes the game interesting!
-
-```{r eval = FALSE}
- # Update with new infections
-  
-  # Get locations of infected people who can infect others
-    possible_virus_transmitters = which(init_data$hidden == "I" & init_data$quarantined == "No") 
-
-  # Find the possible contacts who might be newly infected
-    already_quarantined = which(init_data$quarantined == "Yes")
-    exceptions = c(possible_virus_transmitters, already_quarantined)
-    contacts = setdiff(neighbours, exceptions)
-    
-  # Get new infections  
-    setup = data.frame(prob = 1/4)
-    new_infections = rbinom(length(contacts), 1, setup$prob)
-    infected_contacts = contacts[which(new_infections == 1)]
-    
-  # Update susceptible status in data frame  
-    init_data$hidden[infected_contacts] = "I"
-    init_data$infection_period[infected_contacts]  = -1
-```
-
-In probability, how an infection occurs between a susceptible and infected person is modelled using a Bernoulli random variable. Bernoulli variables have two possible outcomes, ie. heads or tails, yes or no, true or false. In our case, infected or not infected. If you are performing multiple Bernoulli trials, then we model this using a binonmial variable, ie how many heads in 10 coin flips, or how many infections occur in the four neighbours. This is what the function `rbinom()` does.
-
-### Symptoms and Recovery
-
-For the game to mirror the virus characteristics, we want there to be a period of time before an infected person will show symptoms. One average the WHO says symptoms will show after 6 days. 
-https://www.who.int/emergencies/diseases/novel-coronavirus-2019/question-and-answers-hub/q-a-detail/q-a-coronaviruses
-
-The WHO also says people with mild cases are expected to recover within two weeks
-https://www.who.int/dg/speeches/detail/who-director-general-s-opening-remarks-at-the-media-briefing-on-covid-19---24-february-2020
-
-We add these two states to our data frame.
-```{r eval = FALSE}
-symptom_lambda = 5
-recovery_lambda = 14
-
-# Time til symptoms show
-init_data$symptom_time <- rpois(I*J, lambda = symptom_lambda)
-
-# Time til recovery
-init_data$recovery_time <- init_data$symptom_time + rpois(I*J, lambda = recovery_lambda)
-
-```
-
-Poisson random variables are used to simulate the time until the symptoms arrive and the time until patient recovery.
-
-We also add one more state called infection time. This will be used to keep track of when a person becomes infected, when their symptoms will be revealed and when they will recover.
-```{r eval = FALSE}
-# Infection time
-init_data$infection_period <- rep(NA, I*J)
-init_data$infection_period[initial_infections] <- 0
-```
-
-<!-- ### Reactivity  -->
-
-<!-- Counter  -->
-
-<!-- new infections > infection period > symtpom show >  recovery show > tested > quarantine  -->
-
-<!-- ### How the virus spreads  -->
-
-<!-- Most governments require a period of 14 days in quarantine if you have come into contact with the virus.  -->
-
-<!-- ### Testing  -->
-
-<!-- By clicking on a person, you can test if they have the infection.  -->
-<!-- Once a person is revealed as infected, they immediately go into quarantine, along with their four closest neighbours. -->
-
-<!-- ### Winning -->
-
-<!-- ### Optimal Strategy  -->
-
-<!-- I don't know! I made it for fun!  -->
-
-
-<!-- Each of these grid cells represent a person in the population. -->
-
-<!-- ## Migration -->
-<!-- ## Mortality -->
-<!-- * shiny mobile -->
-<!-- * optimising the probability -->
-<!-- (confusing some can recover) -->
