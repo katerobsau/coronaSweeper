@@ -608,12 +608,13 @@ Create a new function called `app.R`. This will be the function in which we writ
 ### Static Game Objects
 
 To keep our code clean, we can group all our statics objects at the beginning of `app.R`. These are variables and functions that will not update with the mouse click, and the packages needed.
-```{r}
+```{r warning= FALSE, message=FALSE}
 # Load packages
 library(shiny)
 library(ggplot2)
+library(shinyalert)
 ```
-Initialise the game paramters for the virus behaviour, board setup and difficulty levels.
+Initialise the game parameters for the virus behaviour, board setup and difficulty levels.
 ```{r}
 # Initialise parameters
 start_num_infections = 4
@@ -794,7 +795,7 @@ To select which level to play, a drop down menu can be added to the user interfa
 ui <- basicPage(
   plotOutput("plotBoard", click = "plot_click"),
   selectInput("level", "Difficulty:",
-              choices = game_levels, selected = default_level)
+              choices = game_levels, selected = default_level) #this line here
 )
 ```
 
@@ -882,41 +883,193 @@ output$rules <- renderText({
 
 ### Winning  
 
-asdf
+To win the game all hidden infections must be identified and revealed. The game is lost if over half of the population from becomes infected, even if some of them recover. To keep track of when the game is won or lost we need to initialise reactive variables that update with each new test/mouse click. 
+
+```{r}
+server <- function(input, output) {  
+  
+  # ...
+  
+    game_summary <- reactiveValues(num_I_hidden = start_num_infections,
+                                 num_I_shown = 0,
+                                 num_R = 0)
+  
+  # ... 
+  
+}
+```
+
+Upon each mouse click these variables need to update and we need to evaluate if the game is won or lost.
+
+```{r eval = FALSE}
+  # Observe the mouse click
+  observeEvent(input$plot_click, {
+
+    # ... 
+    
+     # Game stats
+    game_summary$num_I_shown = sum(person_data$infections$shown == "I")
+    game_summary$num_I_hidden = sum(person_data$infections$hidden == "I")
+    game_summary$num_R = sum(person_data$infections$shown == "R")
+    game_win = (game_summary$num_I_shown == game_summary$num_I_hidden)
+    game_loss = ((game_summary$num_I_hidden + game_summary$num_R) > I*J*perc)
+    
+    # ...
+    
+  }
+
+```
 
 #### Pop Up Box 
 
-asdf
+When the game is won or lost a pop up box should appear. For this we need the package `shinyalert`, which was loaded earlier. Within the user interface to generate a pop up box the function `useShinyalert()` needs to be added.
+
+```{r eval = FALSE}
+ui <- basicPage(
+  useShinyalert(), # this line here
+  verbatimTextOutput("summaryText"),
+  plotOutput("plotBoard", click = "plot_click"),
+  selectInput("level", "Difficulty:",
+              choices = game_levels, selected = default_level)
+)
+```
+
+To define the text in the pop up box the function `shinyalert()` needs to be called within the server. Two different pop ups are defined for if the game is won or lost.
+
+```{r eval = FALSE}
+  # Observe the mouse click
+  observeEvent(input$plot_click, {
+
+    # ... 
+    
+     # Game stats
+    game_summary$num_I_shown = sum(person_data$infections$shown == "I")
+    game_summary$num_I_hidden = sum(person_data$infections$hidden == "I")
+    game_summary$num_R = sum(person_data$infections$shown == "R")
+    game_win = (game_summary$num_I_shown == game_summary$num_I_hidden)
+    game_loss = ((game_summary$num_I_hidden + game_summary$num_R) > I*J*perc)
+
+    # Game end
+    if(game_win)
+      shinyalert(title = "You did it! \n All infections are quarantined", type = "success")
+    if(game_loss)
+      shinyalert(title = "Sorry you failed. \n The spread escaped", type = "info")
+
+    # ...
+  
+  }
+```
 
 #### Game Stats
-asdf
 
+To help people know how many infections are hidden and perhaps change their testing strategy, it would be nice to add the game statistics to the top as a print statement. Again, a call is made in the server function to `verbatimTextOutput()`. This text is positioned above the game board.
 
-
-
-<!-- ### Game Interaction  -->
-
-<!-- Putting this all together. -->
-
-```{r shiny, echo = FALSE}
+```{r}
 ui <- basicPage(
-  plotOutput("plotExample", click = "plot_click")
+  useShinyalert(),
+  verbatimTextOutput("summaryText"), # this line here
+  plotOutput("plotBoard", click = "plot_click"),
+  selectInput("level", "Difficulty:",
+              choices = game_levels, selected = default_level),
+  verbatimTextOutput("rules")
 )
 
-server <- function(input, output){
+```
+
+This `output$summaryText` is then defined using `renderText()` in the server function. 
+
+```{r eval = FALSE}
+server <- function(input, output) {
+  
+  # ... 
+  
+  output$summaryText <- renderText({
+    paste("Days:", counter$countervalue,
+          " Shown:", game_summary$num_I_shown,
+          " Hidden:", game_summary$num_I_hidden - game_summary$num_I_shown,
+          " Recovered:", game_summary$num_R)
+  })
+  
+  # ...
+  
+}
+```
+
+All the shiny pieces can now be combined together!
+
+## Final Game
+
+```{r}
+# Load packages
+library(shiny)
+library(ggplot2)
+library(shinyalert)
+
+# Initialise parameters
+start_num_infections = 4
+symptom_lambda = 5
+recovery_lambda = 14
+I = 20;
+J = 20;
+perc = 0.5;
+infection_levels = c("S", "I", "R")
+infection_labels = c("Susceptible", "Infected", "Recovered")
+test_levels = c("tested", "unknown")
+test_labels = c("Tested", "Not Tested")
+quarantine_levels = c("Yes", "No")
+quarantine_labels = c("Quarantined", "No Restrictions")
+prob_infections = c(0.15, 0.2, 0.25)
+game_levels = c("Easy", "Medium", "Hard")
+default_index = 2
+default_level = game_levels[default_index]
+default_prob = prob_infections[default_index]
+
+# Load functions
+# Must be in the same directory!!!
+source("initialisePersonStatuses.r")
+source("produceGameBoard.r")
+source("getNeighbours.r")
+source("updatePersonStatuses.r")
+
+# UI
+ui <- basicPage(
+  useShinyalert(),
+  verbatimTextOutput("summaryText"),
+  plotOutput("plotBoard", click = "plot_click"),
+  selectInput("level", "Difficulty:",
+              choices = game_levels, selected = default_level),
+  verbatimTextOutput("rules")
+)
+
+# Server
+server <- function(input, output) {
   
   # Set up game board
   init_data = initialise_person_statuses(I, J, start_num_infections,
                                    symptom_lambda, recovery_lambda)
   
-  # Initialise the reactive variables
+  # Set probability of infection
+  setup <- reactiveValues(prob = default_prob)
+  observeEvent(input$level,{
+    i = which(input$level == game_levels)
+    setup$prob = prob_infections[i]
+    person_data$infections = initialise_person_statuses(I, J, start_num_infections,
+                                                        symptom_lambda, recovery_lambda)
+  })
+
+  # Set up reactive values
+  counter <- reactiveValues(countervalue = 0)
   test_coord <- reactiveValues(x = NULL, y = NULL)
   person_data <- reactiveValues(infections = init_data)
+  game_summary <- reactiveValues(win = NA,
+                                 num_I_hidden = start_num_infections,
+                                 num_I_shown = 0,
+                                 num_R = 0)
   
-  # Observe the mouse click
+  # Prompt updates with mouse click
   observeEvent(input$plot_click, {
-   
-    # Update test coordinate
+
+    # Get test coordinate
     x = round(as.numeric(input$plot_click$x))
     x = max(1, x);
     x = min(x, I);
@@ -927,22 +1080,68 @@ server <- function(input, output){
     y = min(y, J);
     test_coord$y = y
     
-    # Simulate new infections and update infection statuses
-    person_data$infections = update_person_statuses(person_data$infections, I, J, default_prob,
+    # Increase counter on infection period
+    counter$countervalue <- counter$countervalue + 1
+    
+    # Simulate new infections and update statuses
+    person_data$infections = update_person_statuses(person_data$infections, I, J, setup$prob,
                            test_coord$x, test_coord$y)
-  
+    
+    # Game stats
+    game_summary$num_I_shown = sum(person_data$infections$shown == "I")
+    game_summary$num_I_hidden = sum(person_data$infections$hidden == "I")
+    game_summary$num_R = sum(person_data$infections$shown == "R")
+    game_win = (game_summary$num_I_shown == game_summary$num_I_hidden)
+    game_loss = ((game_summary$num_I_hidden + game_summary$num_R) > I*J*perc)
+
+    # Game end
+    if(game_win)
+      shinyalert(title = "You did it! \n All infections are quarantined", type = "success")
+    if(game_loss)
+      shinyalert(title = "Sorry you failed. \n The spread escaped", type = "info")
+
+  })
+
+  output$summaryText <- renderText({
+    paste("Days:", counter$countervalue,
+          " Shown:", game_summary$num_I_shown,
+          " Hidden:", game_summary$num_I_hidden - game_summary$num_I_shown,
+          " Recovered:", game_summary$num_R)
   })
   
   # Plot of the game board
   output$plotBoard <- renderPlot({
-    
+
     produce_board_plot(person_data$infections,
                        quarantine_labels, quarantine_levels, 
                        infection_labels, infection_levels,
                        test_labels, test_levels)
     
   })
-  
+
+  output$rules <- renderText({
+
+    paste0(
+      "Goal: Find all the infected people before more than ", round(I*J*perc) , " get infected!",
+      "\n",
+      "\n Game Setup:",
+      "\n - The game starts with 4 infected people",
+      "\n - By clicking on people you can test if they are infected",
+      "\n - Upon each new mouse click new people can become infected",
+      "\n - People can only be infected by their 4 direct neighbours",
+      "\n",
+      "\n To help you out:",
+      "\n - Infected people show symptoms on average after 5 days",
+      "\n - A person showing symptoms is quarantined, along with thier neighbours.",
+      "\n - Once a person is in quarantine they stop spreading the virus",
+      "\n - However, that doesn't mean they haven't already infected someone!",
+      "\n",
+      "\n Beware:",
+      "\n - People who have been tested can still catch the virus in the future!",
+      "\n - Infected people will recover on average after 14 days",
+      "\n - And once recovered those people have immunity")
+  })
+
 }
 
 shinyApp(ui, server)
@@ -956,21 +1155,15 @@ When corona began, uncertainty was high and given my mathematical background I h
 
 One of the earliest and most influential visualisations of the virus spread was from an [article]('https://www.washingtonpost.com/graphics/2020/world/corona-simulator/') in the Washington Post. I think this visualisation is marvellous and have shared it widely with friends and family. Although, for me something does feel missing in this visualisation, aside from people acting like a pinballs in a pinball machine. It is the capacity to interact, and experiment further with aspects of how virus spread works. A more comprehensive look at some of the variables involved is given in this [youtube video]('https://www.youtube.com/watch?v=gxAaO2rsdIs').
 
-Around the same time, I became aware of the twitter trend [5 jobs you had before you became a scientist]('https://www.nj.com/entertainment/2019/04/what-have-you-done-for-money-in-5-jobs-trend-people-are-sharing-their-work-history-on-twitter.html'). (I love this trend took over a year to reach my clearly, very Australian-centric twitter feed). When I was very young, I used to do administrative chores at my mum's physiotherapy for pocket money. I also played a lot of minesweeper - like a lot.
+Around the same time as I was considering exploring virus dynamics through interactive graphics, I became aware of the twitter trend [5 jobs you had before you became a scientist]('https://www.nj.com/entertainment/2019/04/what-have-you-done-for-money-in-5-jobs-trend-people-are-sharing-their-work-history-on-twitter.html'). (I love that this trend took over a year to reach my clearly, very Australian-centric twitter feed). When I was very young, I used to do administrative chores at my mum's physiotherapy for pocket money. I also used to play a lot of minesweeper - like a lot.
 
 It was this combination of things that sparked the idea to create [corona sweeper]('https://katerobsau.shinyapps.io/Corona_Sweeper/'). A shiny app where instead of identifying hidden mines, you can use testing to uncover infected individuals in a population. How we choose to test is clearly very important to mitigating virus spread.
 
-### A comment on sensitivity 
+### A comment
 
-So I actually wrote this code during my second week of working from home in the Netherlands. I wasn't being productive at work, and working on a creative idea in R is an outlet for me. I have wanted to share it for a while, but I was worried that people may find it distasteful or disrespectful. Covid-19 is impacting lives and livelihoods. 
+So I actually wrote this code during my second week of working from home in the Netherlands. That was back in March, and feels like a lifetime ago! I wasn't being productive at work, and working on a creative idea in R is an outlet for me. I have wanted to share it for a while, but I was worried that people may find it distasteful or disrespectful. I have since shared it with friends who have had corona and friends with family who have had corona. It bought these people joy and that is what matters. I'm also currently doing two weeks of quarantine enforced by the Australian government, so the game concepts are far from abstract.
 
-There are reasons that have since changed my mind about sharing the game:
-
-(i) I have shared it with friends, and friends with family who have had corona. It bought these people joy and that is what matters.
-
-(ii) I recently had a brief period of self-isolation myself, when two friends in my bubble developed Covid-like symptoms. These friends didn't meet the criteria for testing here in the Netherlands, so we still do not know whether why they have had corona or not. Either way, the game is no longer strictly abstract for me now.
-
-(iii) Game play is a really important tool for learning. I have learnt a lot about the interplay of infection spread, quarantine and testing through playing this simple game. The most interesting part is that even though I am the designer, I didn't know what the optimal strategy. I have only learnt that through gameplay and experimenting with the parameters.
+What I have realised from created this game is that play is a really important tool for learning. Despite the games relative simplicity in terms of the real virus dynamic, I have learnt a lot about the interplay of infection spread, quarantine and testing. The most interesting part fo me is that even though I am the game designer, I don't know what the optimal strategy is. I have only learnt this through gameplay and experimenting with the parameters. Have fun!!!
 
 <!-- (iv) The most important point. Some people told me I should make it available through the app store and monetarise it. Turns out I'm a classic academic and don't seek reward for knowledge or hard work. However, I met a wonderful woman from India earlier this year. By following her facebook posts I have realised just how closed my world is to many of the problems faced by people in her country. Her city of Bengal has just been hit by a Cyclone. Given the importance of social distancing to preventing virus spread, the cyclone is going to compound the already very severe impacts of covid-19, such as through increased spread in disaster shelters. So I have decided to put this work towards a good cause, and if you enjoy playing this game please donate [here]('https://www.edexlive.com/news/2020/may/22/amphancyclone-heres-how-you-can-donate-to-relief-funds-to-help-cyclone-ravaged-bengal-and-odisha-12179.html). -->
 
