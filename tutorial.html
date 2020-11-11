@@ -915,6 +915,7 @@ output$rules &lt;- renderText({
   
   # ...
   
+    counter &lt;- reactiveValues(countervalue = 0) 
     game_summary &lt;- reactiveValues(num_I_hidden = start_num_infections,
                                  num_I_shown = 0,
                                  num_R = 0)
@@ -927,6 +928,11 @@ output$rules &lt;- renderText({
   observeEvent(input$plot_click, {
 
     # ... 
+    
+    # Increase counter on infection period
+    counter$countervalue &lt;- counter$countervalue + 1
+    
+    # ....
     
      # Game stats
     game_summary$num_I_shown = sum(person_data$infections$shown == &quot;I&quot;)
@@ -973,7 +979,7 @@ output$rules &lt;- renderText({
 </div>
 <div id="game-stats" class="section level4">
 <h4>Game Stats</h4>
-<p>To help people know how many infections are hidden and perhaps change their testing strategy, it would be nice to add the game statistics to the top as a print statement. Again, a call is made in the server function to <code>verbatimTextOutput()</code>. This text is positioned above the game board.</p>
+<p>To help people know how many infections are hidden and perhaps change their testing strategy, it would be nice to add the game statistics to the top as a print statement. A call is made in the user interface to <code>verbatimTextOutput()</code> to position the summary text above the game board.</p>
 <pre class="r"><code>ui &lt;- basicPage(
   useShinyalert(),
   verbatimTextOutput(&quot;summaryText&quot;), # this line here
@@ -982,7 +988,7 @@ output$rules &lt;- renderText({
               choices = game_levels, selected = default_level),
   verbatimTextOutput(&quot;rules&quot;)
 )</code></pre>
-<p>This <code>output$summaryText</code> is then defined using <code>renderText()</code> in the server function.</p>
+<p>The variable <code>output$summaryText</code> can then be defined using <code>renderText()</code> in the server function. We use the reactive variable <code>counter$countervalue</code>, as defined in the previous subsection, to keep track of how many days have passed.</p>
 <pre class="r"><code>server &lt;- function(input, output) {
   
   # ... 

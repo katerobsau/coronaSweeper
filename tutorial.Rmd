@@ -890,6 +890,7 @@ server <- function(input, output) {
   
   # ...
   
+    counter <- reactiveValues(countervalue = 0) 
     game_summary <- reactiveValues(num_I_hidden = start_num_infections,
                                  num_I_shown = 0,
                                  num_R = 0)
@@ -906,6 +907,11 @@ Upon each mouse click these variables need to update and we need to evaluate if 
   observeEvent(input$plot_click, {
 
     # ... 
+    
+    # Increase counter on infection period
+    counter$countervalue <- counter$countervalue + 1
+    
+    # ....
     
      # Game stats
     game_summary$num_I_shown = sum(person_data$infections$shown == "I")
@@ -962,7 +968,7 @@ To define the text in the pop up box the function `shinyalert()` needs to be cal
 
 #### Game Stats
 
-To help people know how many infections are hidden and perhaps change their testing strategy, it would be nice to add the game statistics to the top as a print statement. Again, a call is made in the server function to `verbatimTextOutput()`. This text is positioned above the game board.
+To help people know how many infections are hidden and perhaps change their testing strategy, it would be nice to add the game statistics to the top as a print statement. A call is made in the user interface to `verbatimTextOutput()` to position the summary text above the game board.
 
 ```{r}
 ui <- basicPage(
@@ -976,7 +982,7 @@ ui <- basicPage(
 
 ```
 
-This `output$summaryText` is then defined using `renderText()` in the server function. 
+The variable `output$summaryText` can then be defined using `renderText()` in the server function. We use the reactive variable `counter$countervalue`, as defined in the previous subsection, to keep track of how many days have passed.
 
 ```{r eval = FALSE}
 server <- function(input, output) {
