@@ -16,11 +16,7 @@ test_levels = c("tested", "unknown")
 test_labels = c("Tested", "Not Tested")
 quarantine_levels = c("Yes", "No")
 quarantine_labels = c("Quarantined", "No Restrictions")
-prob_infections = c(0.15, 0.2, 0.25)
-game_levels = c("Easy", "Medium", "Hard")
-default_index = 2
-default_level = game_levels[default_index]
-default_prob = prob_infections[default_index]
+default_prob = 0.2
 
 # Load functions
 # source("initialisePersonStatuses.r")
@@ -168,13 +164,13 @@ update_person_statuses <- function(person_data, I, J,
   
 }
 
-# UI
+# User Interface
 ui <- basicPage(
   useShinyalert(),
   verbatimTextOutput("summaryText"),
   plotOutput("plotBoard", click = "plot_click"),
-  selectInput("level", "Difficulty:",
-              choices = game_levels, selected = default_level),
+  sliderInput("prob", "Infection Probability:",
+              min = 0, max = 0.5, value = default_prob),
   verbatimTextOutput("rules")
 )
 
@@ -195,9 +191,7 @@ server <- function(input, output) {
   setup <- reactiveValues(prob = default_prob)
   
   # Set up difficulty levels
-  observeEvent(input$level,{
-    i = which(input$level == game_levels)
-    setup$prob = prob_infections[i]
+  observeEvent(input$prob,{
     person_data$infections = initialise_person_statuses(I, J, start_num_infections,
                                                         symptom_lambda, recovery_lambda)
     counter$countervalue = 0
@@ -224,7 +218,7 @@ server <- function(input, output) {
     counter$countervalue <- counter$countervalue + 1
     
     # Simulate new infections and update statuses
-    person_data$infections = update_person_statuses(person_data$infections, I, J, setup$prob,
+    person_data$infections = update_person_statuses(person_data$infections, I, J, input$prob,
                            test_coord$x, test_coord$y)
     
     # Game stats
