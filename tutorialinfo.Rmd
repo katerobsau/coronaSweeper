@@ -1001,7 +1001,7 @@ All the shiny pieces can now be combined together!
 
 ## Final Game
 
-Click around and have a play! The game is hosted online [here]('https://katerobsau.shinyapps.io/Corona_Sweeper/').
+Click around and have a play! The game is hosted online at [https://katerobsau.shinyapps.io/Corona_Sweeper/]('https://katerobsau.shinyapps.io/Corona_Sweeper/').  
 The combined code to generate the game is below.
 
 ```{r}
