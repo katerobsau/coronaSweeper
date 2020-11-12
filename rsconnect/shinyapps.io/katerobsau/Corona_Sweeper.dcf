@@ -5,8 +5,9 @@ account: katerobsau
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 2043362
-bundleId: 2977564
+bundleId: 3840103
 url: https://katerobsau.shinyapps.io/Corona_Sweeper/
-when: 1586205569.99587
+when: 1604968658.58151
 asMultiple: FALSE
 asStatic: FALSE
+ignoredFiles: app_condensed.R|getNeighbours.R|initialisePersonStatuses.R|produceGameBoard.R|README.md|test.R|tutorial.html|tutorial.Rmd|updatePersonStatuses.R

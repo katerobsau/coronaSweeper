@@ -137,11 +137,11 @@ update_person_statuses <- function(person_data, I, J,
   neighbours = get_neighbours(i, I, J)
   already_quarantined = which(person_data$quarantined == "Yes")
   exceptions = c(i, already_quarantined)
-  contacts = setdiff(neighbours, exceptions)
+  contacts = neighbours[!(neighbours %in% exceptions)]
   
   # Update with new infections
   new_infections = rbinom(length(contacts), 1, infection_prob)
-  infected_contacts = contacts[which(new_infections == 1)]
+  infected_contacts = unique(contacts[which(new_infections == 1)])
   person_data$hidden[infected_contacts] = "I"
   person_data$infection_period[infected_contacts] = 0
   
