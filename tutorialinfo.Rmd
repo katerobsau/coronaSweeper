@@ -1004,7 +1004,7 @@ All the shiny pieces can now be combined together!
 Click around and have a play! The game is hosted online [here]('https://katerobsau.shinyapps.io/Corona_Sweeper/').
 The combined code to generate the game is below.
 
-```{r eval = FALSE}
+```{r}
 # Load packages
 library(shiny)
 library(ggplot2)
