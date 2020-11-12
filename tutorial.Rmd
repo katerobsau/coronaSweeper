@@ -267,7 +267,7 @@ Once the susceptible people who have been exposed to an infected person have bee
 ```{r}
   # Update with new infections
   infection_prob = 1/5
-  new_infections = rbinom(length(contacts), 1, default_prob)
+  new_infections = rbinom(length(contacts), 1, infection_prob)
   infected_contacts = unique(contacts[which(new_infections == 1)])
   person_data$hidden[infected_contacts] = "I"
   person_data$infection_period[infected_contacts] = 0
@@ -628,11 +628,7 @@ test_levels = c("tested", "unknown")
 test_labels = c("Tested", "Not Tested")
 quarantine_levels = c("Yes", "No")
 quarantine_labels = c("Quarantined", "No Restrictions")
-prob_infections = c(0.15, 0.2, 0.25)
-game_levels = c("Easy", "Medium", "Hard")
-default_index = 2
-default_level = game_levels[default_index]
-default_prob = prob_infections[default_index]
+default_prob = 0.2
 ```
 Load the functions needed to set up the game and update the virus dynamics. These functions are saved in a separate file in the working directory.
 ```{r}
@@ -774,75 +770,47 @@ Here the inputs of `update_person_statuses()` and `produce_board_plot()` have ch
 
 Coordinates from the plot are converted to numeric values and rounded to give the integer coordinates that correspond to a grid. Mouse clicks outside the plot are also rounded to the nearest valid integer values.
 
-### Levels 
+### Infection probabiliy 
 
-#### (i) Add difficulty levels
+#### (i) Add slider
 
-To understand the game dynamics it can be useful to start with a much lower probability of infection. Given this, it would be nice to add different difficulty levels to the game. Already included in the static inputs is code for three different difficulty levels.
-
-```{r}
-prob_infections = c(0.15, 0.2, 0.25)
-game_levels = c("Easy", "Medium", "Hard")
-default_index = 2
-default_level = game_levels[default_index]
-default_prob = prob_infections[default_index]
-```
-
-A drop down menu can be added to the user interface using the function `selectInput()` so a player can select the level. The below code will position the drop down menu underneath the plot.
+To understand the game dynamics it can be useful to change the probability of infection. Given this, it would be nice to add a `sliderInput()`. The below code will position a slider underneath the plot.
 
 ```{r}
 ui <- basicPage(
   plotOutput("plotBoard", click = "plot_click"),
-  selectInput("level", "Difficulty:",
-              choices = game_levels, selected = default_level) #this line here
+  sliderInput("prob", "Infection Probability:",
+              min = 0, max = 0.5, value = default_prob) #this line here
 )
 ```
 
-#### (ii) Updates for when the level changes
+#### (ii) Updates for when the probability changes
 
-This creates a new variable called `input$level` that corresponds to the selection in drop down menu. When this selection changes the whole board should reset and the probability of infection needs to update. Therefore similarly to the mouse click, within the `server` a reactive variable is needed for the probability of infection.
-
+This creates a new variable called `input$prob` that corresponds to the slider infection probability. When the slider changes this event needs to be observed by Shiny, then the person statuses and correspondingly the whole board should reset.
 ```{r eval = FALSE}
 server <- function(input, output) {  
-  
-  # ...
-  
-  level <- reactiveValues(prob = default_prob)
-  
-  # ... 
-  
-}
-```
 
-When the level changes this event needs to be observed by Shiny,  then the infection probability can be updated and the person statuses initialised set as new. 
-```{r eval = FALSE}
-server <- function(input, output) {  
-  
-  # ...
-  
-  level <- reactiveValues(prob = default_prob)
-  
   # ... 
   
-  observeEvent(input$level,{
-    i = which(input$level == game_levels)
-    level$prob = prob_infections[i]
+  # Update with slider change
+  observeEvent(input$prob,{
     person_data$infections = initialise_person_statuses(I, J, start_num_infections, symptom_lambda, recovery_lambda)
-    })
+    
+  })
   
   # ... 
   
 }
 ```
 
-One small further edit is needed. The reactive input `level$prob` needs to be passed to the function `update_person_statuses()` so when the level is changed, how the infections are simulated will also change.
+One small further edit is needed. The slider input `input$prob` needs to be passed to the function `update_person_statuses()` so how the infections are simulated will also change with the slider value.
 
 ```{r eval = FALSE}
   # Observe the mouse click
   observeEvent(input$plot_click, {
 
     # ... 
-    person_data$infections = update_person_statuses( person_data$infections, I, J, level$prob, test_coord$x, test_coord$y)
+    person_data$infections = update_person_statuses( person_data$infections, I, J, input$prob, test_coord$x, test_coord$y)
 
   # ...
     
@@ -856,8 +824,8 @@ It addition to different levels, it is nice to add some rules to the game and th
 ```{r eval = FALSE}
 ui <- basicPage(
   plotOutput("plotBoard", click = "plot_click"),
-  selectInput("level", "Difficulty:",
-              choices = game_levels, selected = default_level),
+  sliderInput("prob", "Infection Probability:",
+              min = 0, max = 0.5, value = default_prob),
   verbatimTextOutput("rules") # this line here
 )
 ```
@@ -933,8 +901,8 @@ ui <- basicPage(
   useShinyalert(), # this line here
   verbatimTextOutput("summaryText"),
   plotOutput("plotBoard", click = "plot_click"),
-  selectInput("level", "Difficulty:",
-              choices = game_levels, selected = default_level)
+  sliderInput("prob", "Infection Probability:",
+              min = 0, max = 0.5, value = default_prob)
 )
 ```
 
@@ -973,8 +941,8 @@ ui <- basicPage(
   useShinyalert(),
   verbatimTextOutput("summaryText"), # this line here
   plotOutput("plotBoard", click = "plot_click"),
-  selectInput("level", "Difficulty:",
-              choices = game_levels, selected = default_level),
+  sliderInput("prob", "Infection Probability:",
+              min = 0, max = 0.5, value = default_prob),
   verbatimTextOutput("rules")
 )
 
@@ -1053,11 +1021,7 @@ test_levels = c("tested", "unknown")
 test_labels = c("Tested", "Not Tested")
 quarantine_levels = c("Yes", "No")
 quarantine_labels = c("Quarantined", "No Restrictions")
-prob_infections = c(0.15, 0.2, 0.25)
-game_levels = c("Easy", "Medium", "Hard")
-default_index = 2
-default_level = game_levels[default_index]
-default_prob = prob_infections[default_index]
+default_prob = 0.2
 
 # Load functions
 # Must be in the same directory!!!
@@ -1071,8 +1035,8 @@ ui <- basicPage(
   useShinyalert(),
   verbatimTextOutput("summaryText"),
   plotOutput("plotBoard", click = "plot_click"),
-  selectInput("level", "Difficulty:",
-              choices = game_levels, selected = default_level),
+  sliderInput("prob", "Infection Probability:",
+              min = 0, max = 0.5, value = default_prob),
   verbatimTextOutput("rules")
 )
 

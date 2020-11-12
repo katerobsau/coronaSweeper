@@ -50,7 +50,7 @@ server <- function(input, output) {
                                  num_R = 0)
   setup <- reactiveValues(prob = default_prob)
   
-  # Set up difficulty levels
+  # Update with slider change
   observeEvent(input$prob,{
     person_data$infections = initialise_person_statuses(I, J, start_num_infections,
                                                         symptom_lambda, recovery_lambda)
