@@ -224,7 +224,7 @@ server <- function(input, output) {
     counter$countervalue <- counter$countervalue + 1
     
     # Simulate new infections and update statuses
-    person_data$infections = update_person_statuses(person_data$infections, I, J, level$prob,
+    person_data$infections = update_person_statuses(person_data$infections, I, J, setup$prob,
                            test_coord$x, test_coord$y)
     
     # Game stats
