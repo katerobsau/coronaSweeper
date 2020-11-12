@@ -1011,7 +1011,7 @@ output$rules &lt;- renderText({
 </div>
 <div id="final-game" class="section level2">
 <h2>Final Game</h2>
-<p>Click around and have a play!</p>
+<p>Click around and have a play! The game is hosted online <a href="'https://katerobsau.shinyapps.io/Corona_Sweeper/'">here</a>. The combined code to generate the game is below.</p>
 <pre class="r"><code># Load packages
 library(shiny)
 library(ggplot2)
@@ -1159,8 +1159,6 @@ server &lt;- function(input, output) {
 }
 
 shinyApp(ui, server)</code></pre>
-<pre><code>## PhantomJS not found. You can install it with webshot::install_phantomjs(). If it is installed, please make sure the phantomjs executable can be found via the PATH variable.</code></pre>
-<div style="width: 100% ; height: 400px ; text-align: center; box-sizing: border-box; -moz-box-sizing: border-box; -webkit-box-sizing: border-box;" class="muted well">Shiny applications not supported in static R Markdown documents</div>
 </div>
 <div id="why" class="section level2">
 <h2>Why?</h2>
