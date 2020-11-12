@@ -423,7 +423,7 @@ initialise_person_statuses &lt;- function(I, J, start_num_infections,
   neighbours = get_neighbours(i, I, J)
   already_quarantined = which(person_data$quarantined == &quot;Yes&quot;)
   exceptions = c(i, already_quarantined)
-  contacts = setdiff(neighbours, exceptions)</code></pre>
+  contacts = neighbours[!(neighbours %in% exceptions)]</code></pre>
 </div>
 <div id="update-with-new-infections" class="section level3">
 <h3>Update with new infections</h3>
@@ -431,7 +431,7 @@ initialise_person_statuses &lt;- function(I, J, start_num_infections,
 <pre class="r"><code>  # Update with new infections
   infection_prob = 1/5
   new_infections = rbinom(length(contacts), 1, infection_prob)
-  infected_contacts = contacts[which(new_infections == 1)]
+  infected_contacts = unique(contacts[which(new_infections == 1)])
   person_data$hidden[infected_contacts] = &quot;I&quot;
   person_data$infection_period[infected_contacts] = 0</code></pre>
 </div>
@@ -487,11 +487,11 @@ test_x = 1; test_y = 1;
   neighbours = get_neighbours(i, I, J)
   already_quarantined = which(person_data$quarantined == &quot;Yes&quot;)
   exceptions = c(i, already_quarantined)
-  contacts = setdiff(neighbours, exceptions)
+  contacts = neighbours[!(neighbours %in% exceptions)]
 
   # Update with new infections
   new_infections = rbinom(length(contacts), 1, infection_prob)
-  infected_contacts = contacts[which(new_infections == 1)]
+  infected_contacts = unique(contacts[which(new_infections == 1)])
   person_data$hidden[infected_contacts] = &quot;I&quot;
   person_data$infection_period[infected_contacts] = 0
 
@@ -1003,6 +1003,32 @@ output$rules &lt;- renderText({
   # ...
   
 }</code></pre>
+<p>This summary text also needs to be reset when the level is changed.</p>
+<pre class="r"><code>server &lt;- function(input, output) {
+  
+  # ...
+  
+   # Set up difficulty levels
+  observeEvent(input$level,{
+    # ...
+    counter$countervalue = 0
+    game_summary$num_I_hidden = 4
+    game_summary$num_I_shown = 0
+    game_summary$num_R = 0
+  })
+  
+  # ....
+  
+  output$summaryText &lt;- renderText({
+    paste(&quot;Days:&quot;, counter$countervalue,
+          &quot; Shown:&quot;, game_summary$num_I_shown,
+          &quot; Hidden:&quot;, game_summary$num_I_hidden - game_summary$num_I_shown,
+          &quot; Recovered:&quot;, game_summary$num_R)
+  })
+  
+  # ...
+  
+}</code></pre>
 <p>All the shiny pieces can now be combined together!</p>
 </div>
 </div>
@@ -1040,7 +1066,7 @@ source(&quot;produceGameBoard.r&quot;)
 source(&quot;getNeighbours.r&quot;)
 source(&quot;updatePersonStatuses.r&quot;)
 
-# UI
+# User interface
 ui &lt;- basicPage(
   useShinyalert(),
   verbatimTextOutput(&quot;summaryText&quot;),
@@ -1053,27 +1079,31 @@ ui &lt;- basicPage(
 # Server
 server &lt;- function(input, output) {
   
-  # Set up game board
+    # Set up game board
   init_data = initialise_person_statuses(I, J, start_num_infections,
-                                   symptom_lambda, recovery_lambda)
+                                         symptom_lambda, recovery_lambda)
   
-  # Set probability of infection
+  # Set up reactive values
+  counter &lt;- reactiveValues(countervalue = 0)
+  test_coord &lt;- reactiveValues(x = NULL, y = NULL)
+  person_data &lt;- reactiveValues(infections = init_data)
+  game_summary &lt;- reactiveValues(num_I_hidden = start_num_infections,
+                                 num_I_shown = 0,
+                                 num_R = 0)
   setup &lt;- reactiveValues(prob = default_prob)
+  
+  # Set up difficulty levels
   observeEvent(input$level,{
     i = which(input$level == game_levels)
     setup$prob = prob_infections[i]
     person_data$infections = initialise_person_statuses(I, J, start_num_infections,
                                                         symptom_lambda, recovery_lambda)
+    counter$countervalue = 0
+    game_summary$num_I_hidden = 4
+    game_summary$num_I_shown = 0
+    game_summary$num_R = 0
   })
-
-  # Set up reactive values
-  counter &lt;- reactiveValues(countervalue = 0)
-  test_coord &lt;- reactiveValues(x = NULL, y = NULL)
-  person_data &lt;- reactiveValues(infections = init_data)
-  game_summary &lt;- reactiveValues(win = NA,
-                                 num_I_hidden = start_num_infections,
-                                 num_I_shown = 0,
-                                 num_R = 0)
+  
   
   # Prompt updates with mouse click
   observeEvent(input$plot_click, {
@@ -1111,6 +1141,7 @@ server &lt;- function(input, output) {
 
   })
 
+  # Game summary text
   output$summaryText &lt;- renderText({
     paste(&quot;Days:&quot;, counter$countervalue,
           &quot; Shown:&quot;, game_summary$num_I_shown,
@@ -1128,6 +1159,7 @@ server &lt;- function(input, output) {
     
   })
 
+  # Game rules
   output$rules &lt;- renderText({
 
     paste0(
@@ -1170,26 +1202,6 @@ shinyApp(ui, server)</code></pre>
 <h3>A comment</h3>
 <p>So I actually wrote this code during my second week of working from home in the Netherlands. That was back in March, and feels like a lifetime ago! I wasn't being productive at work, and working on a creative idea in R is an outlet for me. I have wanted to share it for a while, but I was worried that people may find it distasteful or disrespectful. I have since shared it with friends who have had corona and friends with family who have had corona. It bought these people joy and that is what matters. I'm also currently doing two weeks of quarantine enforced by the Australian government, so the game concepts are far from abstract.</p>
 <p>What I have realised from created this game is that play is a really important tool for learning. Despite the games relative simplicity in terms of the real virus dynamic, I have learnt a lot about the interplay of infection spread, quarantine and testing. The most interesting part fo me is that even though I am the game designer, I don't know what the optimal strategy is. I have only learnt this through gameplay and experimenting with the parameters. Have fun!!!</p>
-<!-- (iv) The most important point. Some people told me I should make it available through the app store and monetarise it. Turns out I'm a classic academic and don't seek reward for knowledge or hard work. However, I met a wonderful woman from India earlier this year. By following her facebook posts I have realised just how closed my world is to many of the problems faced by people in her country. Her city of Bengal has just been hit by a Cyclone. Given the importance of social distancing to preventing virus spread, the cyclone is going to compound the already very severe impacts of covid-19, such as through increased spread in disaster shelters. So I have decided to put this work towards a good cause, and if you enjoy playing this game please donate [here]('https://www.edexlive.com/news/2020/may/22/amphancyclone-heres-how-you-can-donate-to-relief-funds-to-help-cyclone-ravaged-bengal-and-odisha-12179.html). -->
-<!-- You might notice, there is both a levels and labels vector. The levels are to keep the internal code concise and clear. The labels are for what we want to appear in the plot legend.   -->
-<!-- For each person we now have an entry in each of the columns: `x`, `y`, `shown`, `quarantined`, `tested` and `hidden`. -->
-<!-- ### Reactivity  -->
-<!-- Counter  -->
-<!-- new infections > infection period > symtpom show >  recovery show > tested > quarantine  -->
-<!-- ### How the virus spreads  -->
-<!-- Most governments require a period of 14 days in quarantine if you have come into contact with the virus.  -->
-<!-- ### Testing  -->
-<!-- By clicking on a person, you can test if they have the infection.  -->
-<!-- Once a person is revealed as infected, they immediately go into quarantine, along with their four closest neighbours. -->
-<!-- ### Winning -->
-<!-- ### Optimal Strategy  -->
-<!-- I don't know! I made it for fun!  -->
-<!-- Each of these grid cells represent a person in the population. -->
-<!-- ## Migration -->
-<!-- ## Mortality -->
-<!-- * shiny mobile -->
-<!-- * optimising the probability -->
-<!-- (confusing some can recover) -->
 </div>
 </div>
 </div>

@@ -183,17 +183,8 @@ server <- function(input, output) {
   
   # Set up game board
   init_data = initialise_person_statuses(I, J, start_num_infections,
-                                   symptom_lambda, recovery_lambda)
+                                         symptom_lambda, recovery_lambda)
   
-  # Set probability of infection
-  level <- reactiveValues(prob = default_prob)
-  observeEvent(input$level,{
-    i = which(input$level == game_levels)
-    level$prob = prob_infections[i]
-    person_data$infections = initialise_person_statuses(I, J, start_num_infections,
-                                                        symptom_lambda, recovery_lambda)
-  })
-
   # Set up reactive values
   counter <- reactiveValues(countervalue = 0)
   test_coord <- reactiveValues(x = NULL, y = NULL)
@@ -201,6 +192,19 @@ server <- function(input, output) {
   game_summary <- reactiveValues(num_I_hidden = start_num_infections,
                                  num_I_shown = 0,
                                  num_R = 0)
+  setup <- reactiveValues(prob = default_prob)
+  
+  # Set up difficulty levels
+  observeEvent(input$level,{
+    i = which(input$level == game_levels)
+    setup$prob = prob_infections[i]
+    person_data$infections = initialise_person_statuses(I, J, start_num_infections,
+                                                        symptom_lambda, recovery_lambda)
+    counter$countervalue = 0
+    game_summary$num_I_hidden = 4
+    game_summary$num_I_shown = 0
+    game_summary$num_R = 0
+  })
   
   # Prompt updates with mouse click
   observeEvent(input$plot_click, {
