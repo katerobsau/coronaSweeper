@@ -146,7 +146,7 @@ init_data$infection_period[initial_infections] <- 0
 
 ### Symptoms and recovery
 
-The time until the symptoms arrive and the time until a patient recovery is randomly simulated. For this we use Poisson random variables. These variables may not be used for some people as not everyone will get infected, however it simplifies things to initialise these symtpom and recovery variables for everyone before the game starts.
+The time until the symptoms arrive and the time until a patient recovery is randomly simulated. For this we use Poisson random variables. Not everyone will get infected, however it simplifies things to initialise these symtpom and recovery variables for everyone before the game starts.
 
 ```{r eval = FALSE}
 symptom_lambda = 5
@@ -158,7 +158,7 @@ init_data$recovery_time <- init_data$symptom_time + rpois(I*J, lambda = recovery
 
 ### Initialise person data frame
 
-We can wrap these steps in a function called `initialise_person_statuses()`. 
+These steps are wrapped in a function called `initialise_person_statuses()`. 
 
 ```{r}
 # A function to initialise the game board
@@ -262,7 +262,7 @@ We need to identify the hidden infected people who can infect others and subsequ
 
 ### Update with new infections
 
-Once the susceptible people who have been exposed to an infected person have been identified, the new infections can randomly simulated. How an infection occurs between a susceptible and infected person is modelled using a Bernoulli random variable. Bernoulli variables have two possible outcomes, such as heads or tails, yes or no, or, true or false. In our case, these two states are infected or not infected. If you are performing multiple Bernoulli trials, then this is equivalent to a binonmial variable, for example, how many heads in 10 coin flips, or how many infections occur amongst the exposed contacts. To simulate the infections of the amongst those exposed we therefore use the function `rbinom()`. If a person is newly infected, their `hidden` status needs to be updated and the `infection_period` needs to be set to 0.
+Once the susceptible people who have been exposed to an infected person have been identified, the new infections can randomly simulated. How an infection occurs between a susceptible and infected person is modelled using a Bernoulli random variable. Bernoulli variables have two possible outcomes, such as heads or tails, yes or no, or, true or false. In our case, these two states are infected or not infected. If you are performing multiple Bernoulli trials, then this is equivalent to a binonmial variable, for example, how many heads in 10 coin flips, or how many infections occur amongst the exposed contacts. To simulate the infections of those exposed the function `rbinom()` is used. If a person is newly infected their `hidden` status needs to be updated and the `infection_period` needs to be set to 0.
 
 ```{r}
   # Update with new infections
@@ -285,7 +285,7 @@ If a person has developed symptoms, they are to be revealed to the player and th
 
 ### Reveal those who recovered
 
-Similarly, if a person has recovered then their `shown` infection status also needs to be updated.
+Similarly, if a person has recovered then their infection status also needs to be updated.
 ```{r}
 # Reveal those who recovered
   recovered_cases = (person_data$infection_period > person_data$recovery_time)
@@ -319,7 +319,7 @@ If the person tested was infected or if new people have shown symptoms, then the
 
 ### Infection Update
 
-We can wrap these steps that happen each new day in a function called `update_person_statuses()`. 
+These steps can be wrapped in a function called `update_person_statuses()`. 
 
 ```{r}
 update_person_statuses <- function(person_data, I, J, 
@@ -463,11 +463,11 @@ ggplot(data = init_data) +
 
 At the beginning of the game not all susceptible states will be visible. We want to keep the legend constant and to show all possible states at all times. This is why we convert the `shown` state to a factor instead of a string, and use `drop = FALSE` when we create our legend.
 
-You might also notice, there is both a levels and labels vector. The levels are for to keep the internal code concise and clear, and the labels are for what will appear in the plot legend.  
+You might also notice, there is both a levels and labels vector. The levels keep the internal code concise and clear and the labels are for what will appear in the plot legend.  
 
 ### Quaratine 
 
-We will use the undelying grid squares to show if a person is in quarantine or not. These squares are made slightly transparent using `alpha` so the susceptible state is clearly distinguishable from the quarantine state. Again as an example, the infected central cell is quarantined along with its neighbours.
+The undelying grid squares are used to show if a person is in quarantine or not. These squares are made slightly transparent using `alpha` so the susceptible state is clearly distinguishable from the quarantine state. Again as an example, the infected central cell is quarantined along with its neighbours.
 ```{r}
 # quarantine example
 nbrs = get_neighbours(centre_cell, I, J)
@@ -603,11 +603,11 @@ The shiny basics needed to create the interactivity of the game are outlined her
 
 ### App File
 
-Create a new function called `app.R`. This will be the function in which we write the code that builds our shiny app.
+Create a new function called `app.R`. This will be the function that contains the code to builds the shiny app.
 
 ### Static Game Objects
 
-To keep our code clean, we can group all our statics objects at the beginning of `app.R`. These are variables and functions that will not update with the mouse click, and the packages needed.
+To keep the code clean, all statics objects are grouped the beginning of the function, `app.R`. These are packages, variables and functions that will not be updated with the mouse click..
 ```{r warning= FALSE, message=FALSE}
 # Load packages
 library(shiny)
@@ -634,8 +634,7 @@ default_index = 2
 default_level = game_levels[default_index]
 default_prob = prob_infections[default_index]
 ```
-
-Load the functions needed to set up the game and update the virus dynamics. For simplicity, I've save each of these functions in a separate file in the working directory.
+Load the functions needed to set up the game and update the virus dynamics. These functions are saved in a separate file in the working directory.
 ```{r}
 # Load functions
 source("initialisePersonStatuses.r")
@@ -771,15 +770,15 @@ server <- function(input, output){
 }
 ```
 
-Here the inputs to `update_person_statuses()` and `produce_board_plot()` have changed to their reactive values.
+Here the inputs of `update_person_statuses()` and `produce_board_plot()` have changed to include the relevant reactive values.
 
-Note that the coordinates from the plot as converted to numeric values and rounded to give the integer coordinates that correspond to a grid. Mouse clicks outside the plot are also rounded to the nearest valid integer values.
+Coordinates from the plot are converted to numeric values and rounded to give the integer coordinates that correspond to a grid. Mouse clicks outside the plot are also rounded to the nearest valid integer values.
 
 ### Levels 
 
 #### (i) Add difficulty levels
 
-To understand the game dynamics it can be useful to start with a much lower probability of infection. Given this, it would be nice to add different difficulty levels to the game. You may have noticed in the static inputs there is already some code for three different difficulty levels.
+To understand the game dynamics it can be useful to start with a much lower probability of infection. Given this, it would be nice to add different difficulty levels to the game. Already included in the static inputs is code for three different difficulty levels.
 
 ```{r}
 prob_infections = c(0.15, 0.2, 0.25)
@@ -789,7 +788,7 @@ default_level = game_levels[default_index]
 default_prob = prob_infections[default_index]
 ```
 
-To select which level to play, a drop down menu can be added to the user interface using the function `selectInput`. The below code will position the drop down menu underneath the plot.
+A drop down menu can be added to the user interface using the function `selectInput()` so a player can select the level. The below code will position the drop down menu underneath the plot.
 
 ```{r}
 ui <- basicPage(
@@ -852,15 +851,14 @@ One small further edit is needed. The reactive input `level$prob` needs to be pa
 
 ### Rules 
 
-It addition to different levels it is nice to add some rules to the game. We can do this calling `verbatimTextOutput()` within the user interface. 
+It addition to different levels, it is nice to add some rules to the game and this can be done by calling `verbatimTextOutput()` within the user interface. 
 
 ```{r eval = FALSE}
-# UI
 ui <- basicPage(
   plotOutput("plotBoard", click = "plot_click"),
   selectInput("level", "Difficulty:",
               choices = game_levels, selected = default_level),
-  verbatimTextOutput("rules")
+  verbatimTextOutput("rules") # this line here
 )
 ```
 
@@ -883,7 +881,7 @@ output$rules <- renderText({
 
 ### Winning  
 
-To win the game all hidden infections must be identified and revealed. The game is lost if over half of the population from becomes infected, even if some of them recover. To keep track of when the game is won or lost we need to initialise reactive variables that update with each new test/mouse click. 
+To win the game all hidden infections must be identified and revealed. The game is lost if over half of the population from becomes infected, even if some of them recover. To keep track of when the game is won or lost more reactive variables need to be initialised. 
 
 ```{r}
 server <- function(input, output) {  
@@ -900,7 +898,7 @@ server <- function(input, output) {
 }
 ```
 
-Upon each mouse click these variables need to update and we need to evaluate if the game is won or lost.
+Upon each mouse click these variables need to update and whether the game is won or lost evaluated.
 
 ```{r eval = FALSE}
   # Observe the mouse click
@@ -928,7 +926,7 @@ Upon each mouse click these variables need to update and we need to evaluate if 
 
 #### Pop Up Box 
 
-When the game is won or lost a pop up box should appear. For this we need the package `shinyalert`, which was loaded earlier. Within the user interface to generate a pop up box the function `useShinyalert()` needs to be added.
+When the game is won or lost a pop up box should appear. For this the package `shinyalert` is needed and was loaded earlier. Within the user interface  `useShinyalert()` needs to be added to generate the pop up.
 
 ```{r eval = FALSE}
 ui <- basicPage(
@@ -940,7 +938,7 @@ ui <- basicPage(
 )
 ```
 
-To define the text in the pop up box the function `shinyalert()` needs to be called within the server. Two different pop ups are defined for if the game is won or lost.
+To define the text in the pop up box the function `shinyalert()` is called within the server. Two different pop ups are defined for if the game is won or lost.
 
 ```{r eval = FALSE}
   # Observe the mouse click
@@ -968,7 +966,7 @@ To define the text in the pop up box the function `shinyalert()` needs to be cal
 
 #### Game Stats
 
-To help people know how many infections are hidden and perhaps change their testing strategy, it would be nice to add the game statistics to the top as a print statement. A call is made in the user interface to `verbatimTextOutput()` to position the summary text above the game board.
+To help people know how many infections are hidden and perhaps change their testing strategy, it would be nice to add the game statistics to the top as a print statement. For this `verbatimTextOutput()` is called and the summary text is positioned above the game board.
 
 ```{r}
 ui <- basicPage(
@@ -1035,6 +1033,7 @@ All the shiny pieces can now be combined together!
 
 ## Final Game
 
+Click around and have a play!
 ```{r}
 # Load packages
 library(shiny)
@@ -1205,5 +1204,5 @@ It was this combination of things that sparked the idea to create [corona sweepe
 
 So I actually wrote this code during my second week of working from home in the Netherlands. That was back in March, and feels like a lifetime ago! I wasn't being productive at work, and working on a creative idea in R is an outlet for me. I have wanted to share it for a while, but I was worried that people may find it distasteful or disrespectful. I have since shared it with friends who have had corona and friends with family who have had corona. It bought these people joy and that is what matters. I'm also currently doing two weeks of quarantine enforced by the Australian government, so the game concepts are far from abstract.
 
-What I have realised from created this game is that play is a really important tool for learning. Despite the games relative simplicity in terms of the real virus dynamic, I have learnt a lot about the interplay of infection spread, quarantine and testing. The most interesting part fo me is that even though I am the game designer, I don't know what the optimal strategy is. I have only learnt this through gameplay and experimenting with the parameters. Have fun!!!
+What I have realised from creating this game is that play is a really important tool for learning. Despite the games relative simplicity in terms of the real virus dynamics, I have learnt a lot about the interplay of infection spread, quarantine and testing. The most interesting part fo me is that even though I am the game designer, I don't know what the optimal strategy is. I have only learnt this through gameplay and experimenting with the parameters. Have fun!!!
 
